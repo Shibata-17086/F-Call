@@ -2,26 +2,42 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>F-Call スタッフ用画面</title>
   <link rel="stylesheet" href="styles.css">
+  <style>
+    body { background: #f0f4f8; }
+    .staff-container { max-width: 900px; margin: 2rem auto; }
+    .control-panel { background: #fff; padding: 2rem; border-radius: 10px; margin-bottom: 2rem; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .number-list, .history-list { justify-content: center; }
+    .number-item { min-width: 200px; padding: 1.5rem; text-align: center; }
+    .current-call-display { font-size: 2.5rem; font-weight: bold; color: #1565c0; margin-bottom: 1.5rem; }
+    .debug-panel { margin-top: 2rem; padding: 1rem; background: #f1f1f1; border-radius: 5px; }
+    .debug-text { font-family: monospace; font-size: 0.9rem; margin-bottom: 0.5rem; }
+  </style>
 </head>
 <body>
   <div class="staff-container">
     <h1>F-Call スタッフ用画面</h1>
     <div class="control-panel">
-      <h2>現在の呼び出し番号</h2>
-      <div id="currentNumber" class="current-number">---</div>
+      <h2>現在の呼び出し</h2>
+      <div id="currentCallDisplay" class="current-call-display">---</div>
     </div>
     <div class="section">
-      <h2>発券中の番号（クリックで呼び出し）</h2>
+      <h2>発券中の番号（座席を選んで呼び出し）</h2>
       <div id="ticketList" class="number-list"></div>
     </div>
     <div class="section">
       <h2>呼び出し履歴</h2>
       <div id="historyList" class="history-list"></div>
     </div>
-    <div class="section">
-      <button id="resetAll" class="btn btn-danger">サーバー全体をリセット</button>
+    <div class="section" style="text-align: center;">
+      <button id="resetAll" class="btn danger">サーバー全体をリセット</button>
+    </div>
+    <div id="debugPanel" class="debug-panel" style="display: none;">
+      <h3>デバッグ情報</h3>
+      <div id="debugInfo" class="debug-text"></div>
+      <button onclick="document.getElementById('debugPanel').style.display='none'" class="btn">閉じる</button>
     </div>
   </div>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>

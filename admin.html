@@ -15,6 +15,10 @@
     .number-list, .history-list { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem;}
     .number-item, .history-item { background: #f8f9fa; padding: 1rem; border-radius: 5px; min-width: 120px; text-align: center;}
     .log-title { font-size: 1.1rem; color: #3498db; margin-bottom: 0.5rem;}
+    .seat-list { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem;}
+    .seat-item { background: #e3f2fd; padding: 0.5rem 1rem; border-radius: 5px; display: flex; align-items: center; }
+    .seat-name { font-weight: bold; margin-right: 0.5rem; }
+    .seat-edit { margin-right: 0.5rem; }
     .explain-section { background: #e3f2fd; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; color: #1565c0; }
     .explain-section h2 { font-size: 1.2rem; margin-bottom: 0.5rem; color: #1565c0; }
     .explain-section ul { margin-left: 1.5em; }
@@ -27,39 +31,22 @@
     <div class="explain-section">
       <h2>【サーバー操作時の動作説明】</h2>
       <ul>
-        <li><b>サーバーの起動（node server.js）</b><br>
-          サーバーが起動し、全ての画面（受付・スタッフ・待合室・管理）とリアルタイムでデータをやりとりできるようになります。<br>
-          起動直後は全てのリスト・番号が初期化（空）状態です。
-        </li>
-        <li><b>サーバーの停止（Ctrl+Cやpkill -f server.js）</b><br>
-          サーバーが停止し、全ての画面との通信が切断されます。<br>
-          サーバーが停止中は、どの画面でも番号の発券や呼び出しができません。
-        </li>
-        <li><b>サーバーのリセット（管理画面やスタッフ画面の「リセット」ボタン、またはサーバー再起動）</b><br>
-          発券中リスト・発券履歴・呼び出し履歴・現在の呼び出し番号がすべて初期化されます。<br>
-          受付番号は1から再スタートします。
-        </li>
-        <li><b>受付画面で「受付番号を発行」ボタン</b><br>
-          サーバーに新しい番号の発券をリクエストします。<br>
-          サーバーは「今まで発券した最大番号+1」を新しい番号として発券し、発券中リスト・発券履歴に追加します。<br>
-          すべての画面に即時反映されます。
-        </li>
-        <li><b>スタッフ画面で発券中番号をクリック</b><br>
-          サーバーに「呼び出しリクエスト」を送信します。<br>
-          サーバーはその番号を「現在の呼び出し番号」として記録し、発券中リストから削除、呼び出し履歴に追加します。<br>
-          待合室画面の「現在呼び出し中の番号」も更新されます。
-        </li>
-        <li><b>管理画面で各種クリア・変更ボタン</b><br>
-          発券中リスト・発券履歴・呼び出し履歴のクリアや、呼び出し番号の変更、全体リセットができます。<br>
-          すべての画面に即時反映されます。
-        </li>
-        <li><b>依存パッケージ未インストール時</b><br>
-          サーバー起動時に「Cannot find module 'express'」等のエラーが出て動作しません。<br>
-          <b>npm install</b> または <b>npm install express socket.io cors</b> を実行してください。
-        </li>
+        <li>座席（診察台）はここで追加・編集・削除できます。スタッフ画面で呼び出し時に座席を指定します。</li>
+        <!-- 他の説明は省略 -->
       </ul>
     </div>
 
+    <div class="section">
+      <div class="log-title">座席（診察台）管理</div>
+      <div id="seatList" class="seat-list"></div>
+      <input type="text" id="newSeatName" placeholder="座席名を入力" style="font-size:1rem;">
+      <button id="addSeatBtn" class="btn btn-primary">座席を追加</button>
+    </div>
+    <div class="section">
+      <div class="log-title">1人あたりの予想待ち時間（分）</div>
+      <input type="number" id="waitMinutesInput" min="1" style="width:100px; font-size:1rem;">
+      <button id="setWaitMinutesBtn" class="btn btn-primary">変更</button>
+    </div>
     <div class="section">
       <div class="log-title">現在発券中の番号</div>
       <div id="ticketList" class="number-list"></div>
@@ -79,6 +66,7 @@
       <div class="log-title">現在の呼び出し番号</div>
       <div id="currentNumber" style="font-size:2rem; font-weight:bold; margin-bottom:1rem;">---</div>
       <input type="number" id="setNumberInput" min="0" style="width:100px; font-size:1rem;">
+      <select id="setSeatSelect" style="font-size:1rem;"></select>
       <button id="setNumberBtn" class="btn btn-primary">呼び出し番号を変更</button>
     </div>
     <div class="section">

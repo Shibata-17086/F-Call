@@ -11,10 +11,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-let tickets = []; // 現在発券中 [{number, time}]
-let issuedHistory = []; // 発券履歴 [{number, time}]
-let calledHistory = []; // 呼び出し履歴 [{number, time}]
-let currentNumber = null; // 現在呼び出し中の番号
+let tickets = []; // [{number, time}]
+let issuedHistory = []; // [{number, time}]
+let calledHistory = []; // [{number, time, seat}]
+let currentCall = null; // {number, seat}
+let waitMinutesPerPerson = 5;
+let seats = [
+  { id: '1', name: '1番台' },
+  { id: '2', name: '2番台' }
+];
 
 function formatTime(date) {
   return date.getFullYear() + '-' +
@@ -25,37 +30,50 @@ function formatTime(date) {
     String(date.getSeconds()).padStart(2, '0');
 }
 
+function sendUpdate() {
+  io.emit('update', {
+    tickets,
+    issuedHistory,
+    calledHistory,
+    currentCall,
+    waitMinutesPerPerson,
+    seats
+  });
+}
+
 io.on('connection', (socket) => {
   // 初期データ送信
   socket.emit('init', {
     tickets,
     issuedHistory,
     calledHistory,
-    currentNumber
+    currentCall,
+    waitMinutesPerPerson,
+    seats
   });
 
-// 発券リクエスト
-socket.on('issueTicket', () => {
-    // すべての発券番号の最大値を取得
+  // 発券リクエスト
+  socket.on('issueTicket', () => {
     const allNumbers = [...tickets.map(t => t.number), ...issuedHistory.map(h => h.number)];
     const newNumber = allNumbers.length > 0 ? Math.max(...allNumbers) + 1 : 1;
     const time = formatTime(new Date());
     const ticket = { number: newNumber, time };
     tickets.push(ticket);
     issuedHistory.unshift(ticket);
-    io.emit('update', { tickets, issuedHistory, calledHistory, currentNumber });
+    sendUpdate();
   });
 
-  // 呼び出しリクエスト（スタッフ画面からのみ、発券中リストから選択）
-  socket.on('callNumber', (number) => {
+  // 呼び出しリクエスト（スタッフ画面からのみ、座席指定）
+  socket.on('callNumber', ({ number, seatId }) => {
     const idx = tickets.findIndex(t => t.number === number);
-    if (idx === -1) return; // 発券中でない番号は無視
+    const seat = seats.find(s => s.id === seatId);
+    if (idx === -1 || !seat) return;
     const time = formatTime(new Date());
-    currentNumber = number;
-    calledHistory.unshift({ number, time });
-    tickets.splice(idx, 1); // 発券中リストから削除
+    currentCall = { number, seat };
+    calledHistory.unshift({ number, time, seat });
+    tickets.splice(idx, 1);
     if (calledHistory.length > 10) calledHistory = calledHistory.slice(0, 10);
-    io.emit('update', { tickets, issuedHistory, calledHistory, currentNumber });
+    sendUpdate();
   });
 
   // リセット
@@ -63,26 +81,51 @@ socket.on('issueTicket', () => {
     tickets = [];
     issuedHistory = [];
     calledHistory = [];
-    currentNumber = null;
-    io.emit('update', { tickets, issuedHistory, calledHistory, currentNumber });
+    currentCall = null;
+    sendUpdate();
   });
 
   // 管理画面用イベント
   socket.on('admin:clearTickets', () => {
     tickets = [];
-    io.emit('update', { tickets, issuedHistory, calledHistory, currentNumber });
+    sendUpdate();
   });
   socket.on('admin:clearIssuedHistory', () => {
     issuedHistory = [];
-    io.emit('update', { tickets, issuedHistory, calledHistory, currentNumber });
+    sendUpdate();
   });
   socket.on('admin:clearHistory', () => {
     calledHistory = [];
-    io.emit('update', { tickets, issuedHistory, calledHistory, currentNumber });
+    sendUpdate();
   });
-  socket.on('admin:setCurrentNumber', (number) => {
-    currentNumber = number;
-    io.emit('update', { tickets, issuedHistory, calledHistory, currentNumber });
+  socket.on('admin:setCurrentNumber', ({ number, seatId }) => {
+    const seat = seats.find(s => s.id === seatId);
+    if (!seat) return;
+    currentCall = { number, seat };
+    sendUpdate();
+  });
+  socket.on('admin:setWaitMinutes', (minutes) => {
+    if (typeof minutes === 'number' && minutes > 0) {
+      waitMinutesPerPerson = minutes;
+      sendUpdate();
+    }
+  });
+
+  // 座席管理
+  socket.on('admin:addSeat', (name) => {
+    if (!name || typeof name !== 'string' || !name.trim()) return;
+    const id = Date.now().toString();
+    seats.push({ id, name: name.trim() });
+    sendUpdate();
+  });
+  socket.on('admin:removeSeat', (id) => {
+    seats = seats.filter(s => s.id !== id);
+    sendUpdate();
+  });
+  socket.on('admin:editSeat', ({ id, name }) => {
+    const seat = seats.find(s => s.id === id);
+    if (seat && name && name.trim()) seat.name = name.trim();
+    sendUpdate();
   });
 });
 
