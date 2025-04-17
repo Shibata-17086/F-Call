@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>F-Call サーバー管理画面</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { background: #f0f2f5; }
+    .admin-container { max-width: 900px; margin: 2rem auto; background: #fff; padding: 2rem; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);}
+    h1 { margin-bottom: 2rem; }
+    .section { margin-bottom: 2rem; }
+    .btn { padding: 0.5rem 1.5rem; font-size: 1rem; border: none; border-radius: 5px; cursor: pointer; margin-right: 1rem;}
+    .btn-danger { background: #e74c3c; color: #fff; }
+    .btn-primary { background: #3498db; color: #fff; }
+    .number-list, .history-list { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem;}
+    .number-item, .history-item { background: #f8f9fa; padding: 1rem; border-radius: 5px; min-width: 120px; text-align: center;}
+    .log-title { font-size: 1.1rem; color: #3498db; margin-bottom: 0.5rem;}
+    .explain-section { background: #e3f2fd; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; color: #1565c0; }
+    .explain-section h2 { font-size: 1.2rem; margin-bottom: 0.5rem; color: #1565c0; }
+    .explain-section ul { margin-left: 1.5em; }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <h1>F-Call サーバー管理画面</h1>
+
+    <div class="explain-section">
+      <h2>【サーバー操作時の動作説明】</h2>
+      <ul>
+        <li><b>サーバーの起動（node server.js）</b><br>
+          サーバーが起動し、全ての画面（受付・スタッフ・待合室・管理）とリアルタイムでデータをやりとりできるようになります。<br>
+          起動直後は全てのリスト・番号が初期化（空）状態です。
+        </li>
+        <li><b>サーバーの停止（Ctrl+Cやpkill -f server.js）</b><br>
+          サーバーが停止し、全ての画面との通信が切断されます。<br>
+          サーバーが停止中は、どの画面でも番号の発券や呼び出しができません。
+        </li>
+        <li><b>サーバーのリセット（管理画面やスタッフ画面の「リセット」ボタン、またはサーバー再起動）</b><br>
+          発券中リスト・発券履歴・呼び出し履歴・現在の呼び出し番号がすべて初期化されます。<br>
+          受付番号は1から再スタートします。
+        </li>
+        <li><b>受付画面で「受付番号を発行」ボタン</b><br>
+          サーバーに新しい番号の発券をリクエストします。<br>
+          サーバーは「今まで発券した最大番号+1」を新しい番号として発券し、発券中リスト・発券履歴に追加します。<br>
+          すべての画面に即時反映されます。
+        </li>
+        <li><b>スタッフ画面で発券中番号をクリック</b><br>
+          サーバーに「呼び出しリクエスト」を送信します。<br>
+          サーバーはその番号を「現在の呼び出し番号」として記録し、発券中リストから削除、呼び出し履歴に追加します。<br>
+          待合室画面の「現在呼び出し中の番号」も更新されます。
+        </li>
+        <li><b>管理画面で各種クリア・変更ボタン</b><br>
+          発券中リスト・発券履歴・呼び出し履歴のクリアや、呼び出し番号の変更、全体リセットができます。<br>
+          すべての画面に即時反映されます。
+        </li>
+        <li><b>依存パッケージ未インストール時</b><br>
+          サーバー起動時に「Cannot find module 'express'」等のエラーが出て動作しません。<br>
+          <b>npm install</b> または <b>npm install express socket.io cors</b> を実行してください。
+        </li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <div class="log-title">現在発券中の番号</div>
+      <div id="ticketList" class="number-list"></div>
+      <button id="clearTickets" class="btn btn-danger">発券中番号を全て削除</button>
+    </div>
+    <div class="section">
+      <div class="log-title">発券履歴（すべての発券ログ）</div>
+      <div id="issuedHistoryList" class="history-list"></div>
+      <button id="clearIssuedHistory" class="btn btn-danger">発券履歴をクリア</button>
+    </div>
+    <div class="section">
+      <div class="log-title">呼び出し履歴</div>
+      <div id="historyList" class="history-list"></div>
+      <button id="clearHistory" class="btn btn-danger">呼び出し履歴をクリア</button>
+    </div>
+    <div class="section">
+      <div class="log-title">現在の呼び出し番号</div>
+      <div id="currentNumber" style="font-size:2rem; font-weight:bold; margin-bottom:1rem;">---</div>
+      <input type="number" id="setNumberInput" min="0" style="width:100px; font-size:1rem;">
+      <button id="setNumberBtn" class="btn btn-primary">呼び出し番号を変更</button>
+    </div>
+    <div class="section">
+      <button id="resetAll" class="btn btn-danger">サーバー全体をリセット</button>
+    </div>
+  </div>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>F-Call スタッフ用画面</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="staff-container">
+    <h1>F-Call スタッフ用画面</h1>
+    <div class="control-panel">
+      <h2>現在の呼び出し番号</h2>
+      <div id="currentNumber" class="current-number">---</div>
+    </div>
+    <div class="section">
+      <h2>発券中の番号（クリックで呼び出し）</h2>
+      <div id="ticketList" class="number-list"></div>
+    </div>
+    <div class="section">
+      <h2>呼び出し履歴</h2>
+      <div id="historyList" class="history-list"></div>
+    </div>
+    <div class="section">
+      <button id="resetAll" class="btn btn-danger">サーバー全体をリセット</button>
+    </div>
+  </div>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="staff.js"></script>
+</body>
+</html>

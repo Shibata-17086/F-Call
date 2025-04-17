@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>受付番号発行</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>受付番号発行</h1>
+    <div class="ticket-info">
+      <p>現在の待ち人数: <span id="waiting-count">0</span>人</p>
+      <p>予想待ち時間: <span id="waiting-time">0</span>分</p>
+    </div>
+    <div class="number-display" id="ticket-number">---</div>
+    <div class="buttons">
+      <button id="issue-ticket" class="btn primary">受付番号を発行</button>
+    </div>
+  </div>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
