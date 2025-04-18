@@ -1,15 +1,22 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, {
+  cors: {
+    origin: "*", // すべてのオリジンからのアクセスを許可
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname)));
 
 let tickets = []; // [{number, time}]
 let issuedHistory = []; // [{number, time}]
@@ -129,7 +136,49 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = 3001;
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+const PORT = process.env.PORT || 3001;
+const IP = process.env.IP || '0.0.0.0';  // すべてのネットワークインターフェースでリッスン
+
+// サーバーの起動
+server.listen(PORT, IP, () => {
+  console.log(`\n==================================================`);
+  console.log(`   F-Call サーバーが起動しました (ポート: ${PORT})`);
+  console.log(`==================================================`);
+  
+  // サーバーのIPアドレス情報を表示
+  const { networkInterfaces } = require('os');
+  const nets = networkInterfaces();
+  
+  console.log('\nネットワーク接続情報:');
+  console.log('--------------------------------------------------');
+  
+  // ローカルアクセス用URL
+  console.log('ローカル: http://localhost:' + PORT);
+  
+  // 外部アクセス用URLを表示
+  let externalUrls = [];
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      // IPv4アドレスのみを表示し、内部アドレスは除外
+      if (net.family === 'IPv4' && !net.internal) {
+        externalUrls.push(`http://${net.address}:${PORT}`);
+      }
+    }
+  }
+  
+  if (externalUrls.length > 0) {
+    console.log('\n外部からアクセス可能なURL:');
+    externalUrls.forEach(url => console.log(`  ${url}`));
+    console.log('\n以下のURLを他の端末のブラウザで開いてアクセスできます:');
+    console.log(`  管理画面:  ${externalUrls[0]}/admin.html`);
+    console.log(`  受付画面:  ${externalUrls[0]}/index.html`);
+    console.log(`  スタッフ画面: ${externalUrls[0]}/staff.html`);
+    console.log(`  待合室表示: ${externalUrls[0]}/display.html`);
+  } else {
+    console.log('\n警告: 外部からアクセス可能なネットワークインターフェースが見つかりません');
+  }
+  console.log('--------------------------------------------------');
+  console.log('Ctrl+Cでサーバーを停止できます');
+  console.log('==================================================\n');
+});
 });

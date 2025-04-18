@@ -1,4 +1,12 @@
-const socket = io('http://localhost:3001');
+// 接続先のURLを動的に決定
+const getServerUrl = () => {
+  // 本番環境では現在接続しているホストを使用
+  const currentHost = window.location.hostname;
+  const port = 3001; // サーバーのポート番号
+  return `http://${currentHost}:${port}`;
+};
+
+const socket = io(getServerUrl());
 const seatList = document.getElementById('seatList');
 const newSeatName = document.getElementById('newSeatName');
 const addSeatBtn = document.getElementById('addSeatBtn');
