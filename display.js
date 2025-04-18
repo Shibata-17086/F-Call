@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setTimeout(() => {
       notification.style.display = 'none';
-    }, 10000);
+    }, 8000);
   }
 
   function updateDisplay() {
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
       displayNumber.classList.add('highlight');
       setTimeout(() => {
         displayNumber.classList.remove('highlight');
-      }, 2000);
+      }, 1500);
     } else {
       displayNumber.textContent = '---';
       displaySeat.textContent = 'お待ちください';
@@ -66,14 +66,14 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       const historyToShow = calledHistory
         .filter(item => !currentCall || item.number !== currentCall.number)
-        .slice(0, 8);
+        .slice(0, 6);
         
       historyToShow.forEach(item => {
         const div = document.createElement('div');
         div.className = 'history-item';
         div.innerHTML = `
-          <div style="font-size:2.5rem;font-weight:bold;">${item.number}</div>
-          <div style="font-size:1.2rem;color:#fff;margin-top:0.5rem;">${item.seat ? item.seat.name : ''}</div>
+          <div style="font-size:2.2rem;font-weight:bold;color:#4ca3d8;">${item.number}</div>
+          <div style="font-size:1.1rem;color:#666;margin-top:0.5rem;">${item.seat ? item.seat.name : ''}</div>
         `;
         historyList.appendChild(div);
       });
@@ -102,11 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent = `
     @keyframes highlight {
       0% { transform: scale(1); }
-      50% { transform: scale(1.05); }
+      50% { transform: scale(1.03); }
       100% { transform: scale(1); }
     }
     .highlight {
-      animation: highlight 2s ease;
+      animation: highlight 1.5s ease;
     }
   `;
   document.head.appendChild(style);
