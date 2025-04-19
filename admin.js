@@ -24,6 +24,17 @@ const setSeatSelect = document.getElementById('setSeatSelect');
 const setNumberBtn = document.getElementById('setNumberBtn');
 const resetAll = document.getElementById('resetAll');
 
+// 合成音声テスト用
+const testSpeechBtn = document.getElementById('testSpeechBtn');
+if (testSpeechBtn) {
+  testSpeechBtn.onclick = () => {
+    const msg = new window.SpeechSynthesisUtterance('受付番号1番の方、1番診察台へどうぞ');
+    msg.lang = 'ja-JP';
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(msg);
+  };
+}
+
 let seats = [];
 let tickets = [];
 let issuedHistory = [];
