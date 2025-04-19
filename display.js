@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let tickets = [];
   let waitMinutesPerPerson = 5;
   let lastCallNumber = null;
+  let lastCallSeat = null;
 
   // 音声再生キュー
   let speechQueue = [];
@@ -63,18 +64,22 @@ document.addEventListener('DOMContentLoaded', () => {
     msg.lang = 'ja-JP';
     msg.onend = () => {
       isSpeaking = false;
-      playNextSpeech();
+      setTimeout(() => {
+        playNextSpeech();
+      }, 1000);
     };
     window.speechSynthesis.speak(msg);
   }
 
   function updateDisplay() {
     if (currentCall && currentCall.number) {
-      if (lastCallNumber !== currentCall.number) {
-        showNotification(`${currentCall.number}番の方、${currentCall.seat ? currentCall.seat.name : ''}へどうぞ`);
-        // 音声再生キュー方式で呼び出し
-        speakCallQueued(`受付番号${currentCall.number}番の方、${currentCall.seat ? currentCall.seat.name : ''}へどうぞ`);
+      // 番号も座席も前回と同じなら何もしない
+      const seatName = currentCall.seat ? currentCall.seat.name : '';
+      if (lastCallNumber !== currentCall.number || lastCallSeat !== seatName) {
+        showNotification(`${currentCall.number}番の方、${seatName}へどうぞ`);
+        speakCallQueued(`受付番号${currentCall.number}番の方、${seatName}へどうぞ`);
         lastCallNumber = currentCall.number;
+        lastCallSeat = seatName;
       }
       
       displayNumber.textContent = currentCall.number;
