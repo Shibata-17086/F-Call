@@ -22,6 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let waitMinutesPerPerson = 5;
   let lastCallNumber = null;
 
+  // 音声再生キュー
+  let speechQueue = [];
+  let isSpeaking = false;
+
   function updateClock() {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
@@ -45,12 +49,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 8000);
   }
 
-  // 合成音声で呼び出しを再生する関数
-  function speakCall(number, seatName) {
-    if (!number || !seatName) return;
-    const msg = new window.SpeechSynthesisUtterance(`受付番号${number}番の方、${seatName}へどうぞ`);
+  // 音声再生キュー方式で呼び出しを再生する関数
+  function speakCallQueued(text) {
+    speechQueue.push(text);
+    playNextSpeech();
+  }
+
+  function playNextSpeech() {
+    if (isSpeaking || speechQueue.length === 0) return;
+    isSpeaking = true;
+    const text = speechQueue.shift();
+    const msg = new window.SpeechSynthesisUtterance(text);
     msg.lang = 'ja-JP';
-    window.speechSynthesis.cancel();
+    msg.onend = () => {
+      isSpeaking = false;
+      playNextSpeech();
+    };
     window.speechSynthesis.speak(msg);
   }
 
@@ -58,8 +72,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentCall && currentCall.number) {
       if (lastCallNumber !== currentCall.number) {
         showNotification(`${currentCall.number}番の方、${currentCall.seat ? currentCall.seat.name : ''}へどうぞ`);
-        // 合成音声で呼び出し
-        speakCall(currentCall.number, currentCall.seat ? currentCall.seat.name : '');
+        // 音声再生キュー方式で呼び出し
+        speakCallQueued(`受付番号${currentCall.number}番の方、${currentCall.seat ? currentCall.seat.name : ''}へどうぞ`);
         lastCallNumber = currentCall.number;
       }
       
