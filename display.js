@@ -45,10 +45,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 8000);
   }
 
+  // 合成音声で呼び出しを再生する関数
+  function speakCall(number, seatName) {
+    if (!number || !seatName) return;
+    const msg = new window.SpeechSynthesisUtterance(`受付番号${number}番の方、${seatName}へどうぞ`);
+    msg.lang = 'ja-JP';
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(msg);
+  }
+
   function updateDisplay() {
     if (currentCall && currentCall.number) {
       if (lastCallNumber !== currentCall.number) {
         showNotification(`${currentCall.number}番の方、${currentCall.seat ? currentCall.seat.name : ''}へどうぞ`);
+        // 合成音声で呼び出し
+        speakCall(currentCall.number, currentCall.seat ? currentCall.seat.name : '');
         lastCallNumber = currentCall.number;
       }
       
