@@ -73,7 +73,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateDisplay() {
     if (currentCall && currentCall.number) {
-      // 番号も座席も前回と同じなら何もしない
       const seatName = currentCall.seat ? currentCall.seat.name : '';
       if (lastCallNumber !== currentCall.number || lastCallSeat !== seatName) {
         showNotification(`${currentCall.number}番の方、${seatName}へどうぞ`);
@@ -81,10 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
         lastCallNumber = currentCall.number;
         lastCallSeat = seatName;
       }
-      
       displayNumber.textContent = currentCall.number;
       displaySeat.textContent = currentCall.seat ? `${currentCall.seat.name}へどうぞ` : 'お待ちください';
-      
       displayNumber.classList.add('highlight');
       setTimeout(() => {
         displayNumber.classList.remove('highlight');
@@ -95,17 +92,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     historyList.innerHTML = '';
-    
-    if (calledHistory.length === 0) {
+    // 履歴リストはcalledHistoryの先頭からそのまま表示
+    const historyToShow = calledHistory.slice(0, 6);
+    if (historyToShow.length === 0) {
       const emptyMsg = document.createElement('div');
       emptyMsg.textContent = '呼び出し履歴はありません';
       emptyMsg.className = 'no-history-message';
       historyList.appendChild(emptyMsg);
     } else {
-      const historyToShow = calledHistory
-        .filter(item => !currentCall || item.number !== currentCall.number)
-        .slice(0, 6);
-        
       historyToShow.forEach(item => {
         const div = document.createElement('div');
         div.className = 'history-item';
