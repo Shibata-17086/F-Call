@@ -7,8 +7,13 @@ const fs = require('fs');
 const https = require('https');
 
 const app = express();
-const server = https.createServer(app);
-const io = new Server(server, {
+
+const privateKey = fs.readFileSync('server.key', 'utf8');
+const certificate = fs.readFileSync('server.crt', 'utf8');
+const credentials = { key: privateKey, cert: certificate };
+const httpsServer = https.createServer(credentials, app);
+
+const io = new Server(httpsServer, {
   cors: {
     origin: "*", // すべてのオリジンからのアクセスを許可
     methods: ["GET", "POST"],
@@ -488,10 +493,6 @@ io.on('connection', (socket) => {
 // 定期的な日付チェック（1時間ごと）
 setInterval(checkDateReset, 60 * 60 * 1000);
 
-const privateKey = fs.readFileSync('server.key', 'utf8');
-const certificate = fs.readFileSync('server.crt', 'utf8');
-const credentials = { key: privateKey, cert: certificate };
-
 // HTTPサーバーでHTTPSへリダイレクト
 const httpApp = express();
 httpApp.use((req, res) => {
@@ -503,7 +504,7 @@ httpServer.listen(3001, () => {
 });
 
 // サーバーの起動
-server.listen(3443, () => {
+httpsServer.listen(3443, () => {
   console.log('==================================================');
   console.log('   F-Call サーバー(HTTPS)が起動しました (ポート: 3443)');
   console.log('==================================================');
