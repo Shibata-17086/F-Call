@@ -3,9 +3,11 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const cors = require('cors');
+const fs = require('fs');
+const https = require('https');
 
 const app = express();
-const server = http.createServer(app);
+const server = https.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: "*", // すべてのオリジンからのアクセスを許可
@@ -486,14 +488,26 @@ io.on('connection', (socket) => {
 // 定期的な日付チェック（1時間ごと）
 setInterval(checkDateReset, 60 * 60 * 1000);
 
-const PORT = process.env.PORT || 3001;
-const IP = process.env.IP || '0.0.0.0';
+const privateKey = fs.readFileSync('server.key', 'utf8');
+const certificate = fs.readFileSync('server.crt', 'utf8');
+const credentials = { key: privateKey, cert: certificate };
+
+// HTTPサーバーでHTTPSへリダイレクト
+const httpApp = express();
+httpApp.use((req, res) => {
+  res.redirect('https://' + req.headers.host + req.url);
+});
+const httpServer = http.createServer(httpApp);
+httpServer.listen(3001, () => {
+  console.log('HTTPサーバー(リダイレクト用)がポート3001で起動');
+});
 
 // サーバーの起動
-server.listen(PORT, IP, () => {
-  console.log(`\n==================================================`);
-  console.log(`   F-Call サーバーが起動しました (ポート: ${PORT})`);
-  console.log(`==================================================`);
+server.listen(3443, () => {
+  console.log('==================================================');
+  console.log('   F-Call サーバー(HTTPS)が起動しました (ポート: 3443)');
+  console.log('==================================================');
+  console.log('ローカル: https://localhost:3443');
   
   // サーバーのIPアドレス情報を表示
   const { networkInterfaces } = require('os');
@@ -502,16 +516,13 @@ server.listen(PORT, IP, () => {
   console.log('\nネットワーク接続情報:');
   console.log('--------------------------------------------------');
   
-  // ローカルアクセス用URL
-  console.log('ローカル: http://localhost:' + PORT);
-  
   // 外部アクセス用URLを表示
   let externalUrls = [];
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {
       // IPv4アドレスのみを表示し、内部アドレスは除外
       if (net.family === 'IPv4' && !net.internal) {
-        externalUrls.push(`http://${net.address}:${PORT}`);
+        externalUrls.push(`https://${net.address}:3443`);
       }
     }
   }
