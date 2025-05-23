@@ -125,8 +125,13 @@ chmod 644 server.crt
 
 ### 5. ファイアウォール設定
 
+#### UFWを使用する場合（推奨）
+
 ```bash
-# UFWを有効化（まだの場合）
+# UFWをインストール（見つからない場合）
+sudo apt install -y ufw
+
+# UFWを有効化
 sudo ufw enable
 
 # HTTPSポート（3443）を開放
@@ -138,6 +143,39 @@ sudo ufw allow 3001
 # 設定確認
 sudo ufw status
 ```
+
+#### UFWが利用できない場合：iptablesを直接使用
+
+```bash
+# 現在のiptables設定を確認
+sudo iptables -L
+
+# HTTPSポート（3443）を開放
+sudo iptables -A INPUT -p tcp --dport 3443 -j ACCEPT
+
+# HTTPリダイレクト用ポート（3001）を開放
+sudo iptables -A INPUT -p tcp --dport 3001 -j ACCEPT
+
+# 設定を永続化（iptables-persistentをインストール）
+sudo apt install -y iptables-persistent
+sudo netfilter-persistent save
+```
+
+#### 院内LANのみの場合：ファイアウォール無効化
+
+院内LANでの使用のみで、外部からのアクセスがない環境では、ファイアウォールを無効にすることも可能です：
+
+```bash
+# UFWを無効化（インストールされている場合）
+sudo ufw disable
+
+# iptablesをクリア（必要に応じて）
+sudo iptables -F
+sudo iptables -X
+sudo iptables -Z
+```
+
+**注意**: ファイアウォールを無効にする場合は、ルーターやネットワーク機器でのアクセス制限を確認してください。
 
 ### 6. 自動起動設定（systemdを使用）
 
