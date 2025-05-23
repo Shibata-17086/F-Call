@@ -181,6 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateDisplay() {
+    // 営業時間の表示を更新
+    updateBusinessHoursDisplay();
+    
     // 現在の呼び出し表示
     if (currentCall && currentCall.number) {
       const seatName = currentCall.seat ? currentCall.seat.name : '';
@@ -275,7 +278,13 @@ document.addEventListener('DOMContentLoaded', () => {
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
     
     if (data.businessHours) {
-      businessHoursConfig = { ...businessHoursConfig, ...data.businessHours };
+      businessHoursConfig = {
+        start: data.businessHours.start || businessHoursConfig.start,
+        end: data.businessHours.end || businessHoursConfig.end,
+        lunchStart: data.businessHours.lunchBreak?.start || businessHoursConfig.lunchStart,
+        lunchEnd: data.businessHours.lunchBreak?.end || businessHoursConfig.lunchEnd
+      };
+      console.log('営業時間設定受信:', businessHoursConfig);
     }
     
     updateDisplay();
@@ -289,7 +298,13 @@ document.addEventListener('DOMContentLoaded', () => {
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
     
     if (data.businessHours) {
-      businessHoursConfig = { ...businessHoursConfig, ...data.businessHours };
+      businessHoursConfig = {
+        start: data.businessHours.start || businessHoursConfig.start,
+        end: data.businessHours.end || businessHoursConfig.end,
+        lunchStart: data.businessHours.lunchBreak?.start || businessHoursConfig.lunchStart,
+        lunchEnd: data.businessHours.lunchBreak?.end || businessHoursConfig.lunchEnd
+      };
+      console.log('営業時間設定更新:', businessHoursConfig);
     }
     
     updateDisplay();
