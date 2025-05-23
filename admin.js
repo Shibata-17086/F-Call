@@ -1,9 +1,8 @@
 // 接続先のURLを動的に決定
 const getServerUrl = () => {
-  // 本番環境では現在接続しているホストを使用
   const currentHost = window.location.hostname;
-  const port = 3001; // サーバーのポート番号
-  return `http://${currentHost}:${port}`;
+  const port = 3443;
+  return `https://${currentHost}:${port}`;
 };
 
 const socket = io(getServerUrl());
