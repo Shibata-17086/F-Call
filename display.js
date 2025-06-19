@@ -483,9 +483,118 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 音声再生キュー方式（改良版）
   function speakCallQueued(text) {
-    console.log('音声キューに追加:', text);
+    console.log('🎤 音声キューに追加:', text);
     speechQueue.push(text);
     playNextSpeech();
+  }
+
+  // ラズベリーパイ用の代替音声機能
+  function playAlternativeAudio(number, seatNumber) {
+    console.log('🥧 ラズベリーパイ用代替音声システム開始');
+    
+    if (!audioContext) {
+      console.error('❌ AudioContextが初期化されていません');
+      return;
+    }
+    
+    try {
+      // チャイム音を再生
+      playCallSound();
+      
+      // 少し待ってから番号を音で表現
+      setTimeout(() => {
+        playNumberAsBeeps(number);
+      }, 2000);
+      
+      // さらに待ってから座席番号を音で表現
+      if (seatNumber) {
+        setTimeout(() => {
+          playHighBeep(); // 区切り音
+          setTimeout(() => {
+            playNumberAsBeeps(seatNumber);
+          }, 500);
+        }, 4000);
+      }
+      
+    } catch (error) {
+      console.error('❌ 代替音声再生エラー:', error);
+    }
+  }
+
+  // 数字をビープ音で表現する関数
+  function playNumberAsBeeps(number) {
+    console.log(`🔢 数字をビープ音で表現: ${number}`);
+    
+    const digits = number.toString().split('');
+    let delay = 0;
+    
+    digits.forEach((digit, index) => {
+      setTimeout(() => {
+        playDigitAsBeep(parseInt(digit));
+        // 桁の区切りに短い休止
+        if (index < digits.length - 1) {
+          setTimeout(() => playShortBeep(), 800);
+        }
+      }, delay);
+      delay += 1200;
+    });
+  }
+
+  // 一桁の数字をビープ音で表現
+  function playDigitAsBeep(digit) {
+    console.log(`🎵 数字 ${digit} をビープ音で再生`);
+    
+    if (digit === 0) {
+      // 0は長い低い音
+      playTone(220, 800);
+    } else {
+      // 1-9は対応する回数のビープ音
+      let beepDelay = 0;
+      for (let i = 0; i < digit; i++) {
+        setTimeout(() => {
+          playTone(440 + (i * 20), 150); // 音程を少しずつ上げる
+        }, beepDelay);
+        beepDelay += 200;
+      }
+    }
+  }
+
+  // 高い区切り音
+  function playHighBeep() {
+    playTone(880, 300);
+  }
+
+  // 短いビープ音
+  function playShortBeep() {
+    playTone(660, 100);
+  }
+
+  // 指定周波数・時間のトーン再生
+  function playTone(frequency, duration) {
+    if (!audioContext || audioContext.state === 'suspended') {
+      console.log('⚠️ AudioContextが使用できません');
+      return;
+    }
+    
+    try {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + duration / 1000);
+      
+    } catch (error) {
+      console.error('❌ トーン再生エラー:', error);
+    }
   }
 
   function playNextSpeech() {
@@ -510,6 +619,17 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (!('speechSynthesis' in window)) {
       console.error('このブラウザは音声合成をサポートしていません');
+      // ラズベリーパイの場合は代替音声システムを使用
+      if (isRaspberryPi && speechQueue.length > 0) {
+        const text = speechQueue.shift();
+        console.log('🥧 音声合成非対応のため代替音声システムを使用');
+        const numberMatch = text.match(/(\d+)/g);
+        if (numberMatch && numberMatch.length >= 1) {
+          const number = parseInt(numberMatch[0]);
+          const seatNumber = numberMatch.length > 1 ? parseInt(numberMatch[1]) : null;
+          playAlternativeAudio(number, seatNumber);
+        }
+      }
       speechQueue = []; // キューをクリア
       return;
     }
@@ -517,7 +637,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // 音声エンジンが読み込まれているかチェック
     const voices = speechSynthesis.getVoices();
     if (voices.length === 0) {
-      console.log('⚠️ 音声エンジンがまだ読み込まれていません。少し待ってから再試行...');
+      console.log('⚠️ 音声エンジンがまだ読み込まれていません。');
+      
+      // ラズベリーパイで音声エンジンが5秒以上読み込まれない場合は代替システムを使用
+      if (isRaspberryPi) {
+        const currentTime = Date.now();
+        if (!window.speechSystemStartTime) {
+          window.speechSystemStartTime = currentTime;
+        }
+        
+        if (currentTime - window.speechSystemStartTime > 5000) {
+          console.log('🥧 音声エンジン読み込み時間切れ。代替音声システムを使用。');
+          const text = speechQueue.shift();
+          const numberMatch = text.match(/(\d+)/g);
+          if (numberMatch && numberMatch.length >= 1) {
+            const number = parseInt(numberMatch[0]);
+            const seatNumber = numberMatch.length > 1 ? parseInt(numberMatch[1]) : null;
+            playAlternativeAudio(number, seatNumber);
+          }
+          return;
+        }
+      }
+      
       const retryDelay = isRaspberryPi ? 2000 : 1000;
       setTimeout(() => playNextSpeech(), retryDelay);
       return;
@@ -591,7 +732,19 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedVoice = defaultVoice;
             console.log(`⚠️ フォールバック音声を使用: ${defaultVoice.name}`);
           } else {
-            console.log('⚠️ 音声が見つかりません。システムデフォルトを使用');
+            console.log('⚠️ 音声が見つかりません。代替システムを使用');
+            
+            // 音声が見つからない場合はラズベリーパイ代替システムを使用
+            if (isRaspberryPi) {
+              isSpeaking = false;
+              const numberMatch = text.match(/(\d+)/g);
+              if (numberMatch && numberMatch.length >= 1) {
+                const number = parseInt(numberMatch[0]);
+                const seatNumber = numberMatch.length > 1 ? parseInt(numberMatch[1]) : null;
+                playAlternativeAudio(number, seatNumber);
+              }
+              return;
+            }
           }
         }
         
@@ -615,6 +768,18 @@ document.addEventListener('DOMContentLoaded', () => {
         msg.onerror = (event) => {
           console.error('❌ 音声再生エラー:', event);
           isSpeaking = false;
+          
+          // ラズベリーパイで音声エラーが発生した場合は代替システムを使用
+          if (isRaspberryPi) {
+            console.log('🥧 音声エラーのため代替音声システムを使用');
+            const numberMatch = text.match(/(\d+)/g);
+            if (numberMatch && numberMatch.length >= 1) {
+              const number = parseInt(numberMatch[0]);
+              const seatNumber = numberMatch.length > 1 ? parseInt(numberMatch[1]) : null;
+              playAlternativeAudio(number, seatNumber);
+            }
+          }
+          
           const errorDelay = isRaspberryPi ? 2000 : 1000;
           setTimeout(() => {
             playNextSpeech();
@@ -627,20 +792,48 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // タイムアウト処理（ラズベリーパイではより長いタイムアウト）
         const timeoutDuration = isRaspberryPi ? 25000 : 15000;
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           if (isSpeaking) {
-            console.log('⏰ 音声再生タイムアウト。強制終了します。');
+            console.log('⏰ 音声再生タイムアウト。代替システムを使用。');
             speechSynthesis.cancel();
             isSpeaking = false;
+            
+            // タイムアウト時にもラズベリーパイ代替システムを使用
+            if (isRaspberryPi) {
+              const numberMatch = text.match(/(\d+)/g);
+              if (numberMatch && numberMatch.length >= 1) {
+                const number = parseInt(numberMatch[0]);
+                const seatNumber = numberMatch.length > 1 ? parseInt(numberMatch[1]) : null;
+                playAlternativeAudio(number, seatNumber);
+              }
+            }
+            
             setTimeout(() => playNextSpeech(), isRaspberryPi ? 1000 : 500);
           }
         }, timeoutDuration);
+        
+        // 正常終了時にタイムアウトをクリア
+        msg.addEventListener('end', () => {
+          clearTimeout(timeoutId);
+        });
         
       }, cancelWaitTime);
       
     } catch (error) {
       console.error('❌ 音声合成エラー:', error);
       isSpeaking = false;
+      
+      // ラズベリーパイで例外が発生した場合は代替システムを使用
+      if (isRaspberryPi) {
+        console.log('🥧 音声合成例外のため代替音声システムを使用');
+        const numberMatch = text.match(/(\d+)/g);
+        if (numberMatch && numberMatch.length >= 1) {
+          const number = parseInt(numberMatch[0]);
+          const seatNumber = numberMatch.length > 1 ? parseInt(numberMatch[1]) : null;
+          playAlternativeAudio(number, seatNumber);
+        }
+      }
+      
       const errorRetryDelay = isRaspberryPi ? 2000 : 1000;
       setTimeout(() => {
         playNextSpeech();
@@ -1064,6 +1257,21 @@ document.addEventListener('DOMContentLoaded', () => {
       showTemporaryMessage('⚡ 音声エンジン強制読み込み実行中...', 2000);
     });
     controlPanel.appendChild(forceLoadButton);
+    
+    // ラズベリーパイ用代替音声テストボタン
+    const altAudioButton = createButton('🥧 代替音声テスト', '#e91e63', () => {
+      console.log('🥧 代替音声システムテスト開始');
+      
+      if (!audioContext) {
+        showTemporaryMessage('❌ AudioContextが初期化されていません', 3000);
+        return;
+      }
+      
+      // テスト: 受付番号12番、3番診察台
+      playAlternativeAudio(12, 3);
+      showTemporaryMessage('🥧 代替音声テスト実行中: 12番→3番台', 3000);
+    });
+    controlPanel.appendChild(altAudioButton);
     
     // ミュートボタン
     const muteButton = createButton('🔇 音声停止', '#f44336', () => {
