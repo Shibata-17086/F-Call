@@ -42,39 +42,84 @@ document.addEventListener('DOMContentLoaded', () => {
   function initializeAudio() {
     if (audioInitialized) return;
     
+    console.log('🔊 音声システム初期化開始...');
+    
     try {
-      // AudioContextの初期化
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // SpeechSynthesis の初期化（Raspberry Pi対応）
-      if ('speechSynthesis' in window) {
-        // 利用可能な音声を取得
-        const voices = speechSynthesis.getVoices();
-        console.log('利用可能な音声:', voices);
-        
-        // 音声がまだ読み込まれていない場合は待機
-        if (voices.length === 0) {
-          speechSynthesis.addEventListener('voiceschanged', () => {
-            const newVoices = speechSynthesis.getVoices();
-            console.log('音声読み込み完了:', newVoices);
-          });
-        }
-        
-        // テスト音声を無音で再生（音声合成の初期化）
-        const testUtterance = new SpeechSynthesisUtterance('');
-        testUtterance.volume = 0;
-        speechSynthesis.speak(testUtterance);
+      // AudioContext の初期化
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!audioContext && AudioContext) {
+        audioContext = new AudioContext();
+        console.log('✅ AudioContext初期化完了');
       }
       
-      audioInitialized = true;
-      console.log('音声システムが初期化されました');
+      // SpeechSynthesis の確認
+      if (!('speechSynthesis' in window)) {
+        console.error('❌ このブラウザは音声合成をサポートしていません');
+        return;
+      }
       
-      // 初期化成功を視覚的に通知
-      showTemporaryMessage('🔊 音声システム準備完了', 2000);
+      // 音声エンジンの強制読み込み
+      const loadVoicesWithRetry = (retryCount = 0) => {
+        const voices = speechSynthesis.getVoices();
+        console.log(`🎵 音声エンジン読み込み試行 ${retryCount + 1}: ${voices.length}個の音声`);
+        
+        if (voices.length > 0) {
+          console.log('✅ 音声エンジン読み込み完了');
+          const japaneseVoices = voices.filter(v => v.lang.includes('ja'));
+          const englishVoices = voices.filter(v => v.lang.includes('en'));
+          
+          console.log(`🇯🇵 日本語音声: ${japaneseVoices.length}個`);
+          console.log(`🇺🇸 英語音声: ${englishVoices.length}個`);
+          
+          if (japaneseVoices.length > 0) {
+            console.log(`✅ 推奨音声: ${japaneseVoices[0].name}`);
+          } else if (englishVoices.length > 0) {
+            console.log(`⚠️ 日本語音声なし。英語音声を使用: ${englishVoices[0].name}`);
+          }
+          
+          audioInitialized = true;
+          console.log('🎉 音声システム初期化完了！');
+          
+          // 初期化完了後にテスト音声を再生
+          setTimeout(() => {
+            console.log('🔊 初期化テスト音声を再生...');
+            speakCallQueued('音声システムの初期化が完了しました');
+          }, 500);
+          
+        } else if (retryCount < 10) {
+          // 音声エンジンの読み込みを強制的に試行
+          console.log('🔄 音声エンジン読み込み中... 再試行します');
+          
+          // 空の音声を再生して音声エンジンを活性化
+          const dummyUtterance = new SpeechSynthesisUtterance('');
+          speechSynthesis.speak(dummyUtterance);
+          speechSynthesis.cancel();
+          
+          setTimeout(() => loadVoicesWithRetry(retryCount + 1), 500);
+        } else {
+          console.error('❌ 音声エンジンの読み込みに失敗しました');
+          audioInitialized = true; // エラーでも初期化済みにして無限ループを防ぐ
+        }
+      };
+      
+      // 音声エンジンの読み込み開始
+      loadVoicesWithRetry();
+      
+      // voiceschanged イベントリスナー（音声エンジンの非同期読み込み対応）
+      if ('onvoiceschanged' in speechSynthesis) {
+        speechSynthesis.onvoiceschanged = () => {
+          console.log('🔄 音声エンジンが更新されました');
+          const voices = speechSynthesis.getVoices();
+          console.log(`🎵 更新された音声数: ${voices.length}`);
+          if (!audioInitialized && voices.length > 0) {
+            loadVoicesWithRetry();
+          }
+        };
+      }
       
     } catch (error) {
-      console.error('音声初期化エラー:', error);
-      showTemporaryMessage('⚠️ 音声初期化に失敗しました', 3000);
+      console.error('❌ 音声初期化エラー:', error);
+      audioInitialized = true; // エラーでも初期化済みにして無限ループを防ぐ
     }
   }
 
@@ -247,11 +292,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!audioInitialized) {
       console.log('音声システムが初期化されていません。初期化を試行します。');
       initializeAudio();
+      // 初期化後に再試行
+      setTimeout(() => playNextSpeech(), 2000);
+      return;
     }
     
     if (!('speechSynthesis' in window)) {
       console.error('このブラウザは音声合成をサポートしていません');
       speechQueue = []; // キューをクリア
+      return;
+    }
+    
+    // 音声エンジンが読み込まれているかチェック
+    const voices = speechSynthesis.getVoices();
+    if (voices.length === 0) {
+      console.log('⚠️ 音声エンジンがまだ読み込まれていません。少し待ってから再試行...');
+      setTimeout(() => playNextSpeech(), 1000);
       return;
     }
     
@@ -262,62 +318,74 @@ document.addEventListener('DOMContentLoaded', () => {
       // 音声合成をキャンセル（重複防止）
       speechSynthesis.cancel();
       
-      const msg = new SpeechSynthesisUtterance(text);
-      msg.lang = 'ja-JP';
-      msg.rate = 0.8; // ラズパイでは少し遅めに
-      msg.pitch = 1.0;
-      msg.volume = 1.0;
-      
-      // 利用可能な日本語音声を探す
-      const voices = speechSynthesis.getVoices();
-      const japaneseVoice = voices.find(voice => 
-        voice.lang === 'ja-JP' || voice.lang === 'ja' || voice.name.includes('Japanese')
-      );
-      
-      if (japaneseVoice) {
-        msg.voice = japaneseVoice;
-        console.log('日本語音声を使用:', japaneseVoice.name);
-      } else {
-        console.log('日本語音声が見つかりません。デフォルト音声を使用します。');
-        // 利用可能な音声をすべて表示
-        console.log('利用可能な音声:', voices.map(v => `${v.name} (${v.lang})`));
-      }
-      
-      msg.onstart = () => {
-        console.log('音声再生開始:', text);
-      };
-      
-      msg.onend = () => {
-        console.log('音声再生終了');
-        isSpeaking = false;
-        setTimeout(() => {
-          playNextSpeech();
-        }, 1000);
-      };
-      
-      msg.onerror = (event) => {
-        console.error('音声再生エラー:', event);
-        isSpeaking = false;
-        setTimeout(() => {
-          playNextSpeech();
-        }, 1000);
-      };
-      
-      // 音声再生
-      speechSynthesis.speak(msg);
-      
-      // タイムアウト処理（ラズパイで音声が止まることがあるため）
+      // 少し待ってから音声作成（cancel後の安定化）
       setTimeout(() => {
-        if (isSpeaking) {
-          console.log('音声再生タイムアウト。強制終了します。');
-          speechSynthesis.cancel();
-          isSpeaking = false;
-          playNextSpeech();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'ja-JP';
+        msg.rate = 0.7; // ラズパイでは少し遅めに
+        msg.pitch = 1.0;
+        msg.volume = 1.0;
+        
+        // 利用可能な日本語音声を探す
+        const voices = speechSynthesis.getVoices();
+        console.log(`🎵 現在の音声数: ${voices.length}`);
+        
+        const japaneseVoice = voices.find(voice => 
+          voice.lang === 'ja-JP' || voice.lang === 'ja' || voice.name.includes('Japanese') || voice.name.includes('日本語')
+        );
+        
+        if (japaneseVoice) {
+          msg.voice = japaneseVoice;
+          console.log('✅ 日本語音声を使用:', japaneseVoice.name);
+        } else {
+          // 日本語音声がない場合は、デフォルトまたは最初の音声を使用
+          const defaultVoice = voices.find(v => v.default) || voices[0];
+          if (defaultVoice) {
+            msg.voice = defaultVoice;
+            console.log('⚠️ 日本語音声が見つかりません。代替音声を使用:', defaultVoice.name);
+          } else {
+            console.log('⚠️ 音声が見つかりません。システムデフォルトを使用');
+          }
         }
-      }, 10000); // 10秒でタイムアウト
+        
+        msg.onstart = () => {
+          console.log('🔊 音声再生開始:', text);
+        };
+        
+        msg.onend = () => {
+          console.log('✅ 音声再生終了');
+          isSpeaking = false;
+          setTimeout(() => {
+            playNextSpeech();
+          }, 500); // 短めの間隔で次の音声へ
+        };
+        
+        msg.onerror = (event) => {
+          console.error('❌ 音声再生エラー:', event);
+          isSpeaking = false;
+          setTimeout(() => {
+            playNextSpeech();
+          }, 1000);
+        };
+        
+        // 音声再生
+        console.log('🎤 音声合成開始:', text);
+        speechSynthesis.speak(msg);
+        
+        // タイムアウト処理（ラズパイで音声が止まることがあるため）
+        setTimeout(() => {
+          if (isSpeaking) {
+            console.log('⏰ 音声再生タイムアウト。強制終了します。');
+            speechSynthesis.cancel();
+            isSpeaking = false;
+            setTimeout(() => playNextSpeech(), 500);
+          }
+        }, 15000); // 15秒でタイムアウト（長めに設定）
+        
+      }, 200); // cancel後200ms待機
       
     } catch (error) {
-      console.error('音声合成エラー:', error);
+      console.error('❌ 音声合成エラー:', error);
       isSpeaking = false;
       setTimeout(() => {
         playNextSpeech();
@@ -528,6 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 画面クリック時に音声初期化（ユーザー操作が必要なため）
   document.addEventListener('click', () => {
     if (!audioInitialized) {
+      console.log('👆 ユーザークリックによる音声初期化');
       initializeAudio();
     }
   }, { once: true });
@@ -535,9 +604,40 @@ document.addEventListener('DOMContentLoaded', () => {
   // 画面タッチ時にも音声初期化（タッチデバイス対応）
   document.addEventListener('touchstart', () => {
     if (!audioInitialized) {
+      console.log('👆 ユーザータッチによる音声初期化');
       initializeAudio();
     }
   }, { once: true });
+
+  // ページ読み込み完了時に音声システムを初期化
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('📄 DOMContentLoaded: 音声システム初期化開始');
+    setTimeout(() => {
+      initializeAudio();
+    }, 1000);
+  });
+
+  // ページ完全読み込み時にも音声システム初期化を試行
+  window.addEventListener('load', () => {
+    console.log('🌐 ページ完全読み込み: 音声システム初期化確認');
+    setTimeout(() => {
+      if (!audioInitialized) {
+        console.log('🔄 音声システム未初期化のため再試行');
+        initializeAudio();
+      }
+    }, 2000);
+  });
+
+  // 定期的な音声エンジンチェック（5秒ごと）
+  setInterval(() => {
+    if (!audioInitialized && 'speechSynthesis' in window) {
+      const voices = speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        console.log('🔄 定期チェック: 音声エンジンが利用可能になりました');
+        initializeAudio();
+      }
+    }
+  }, 5000);
 
   // 画面の可視性変更時の処理
   document.addEventListener('visibilitychange', () => {
@@ -613,12 +713,39 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 音声テストボタン
     const testButton = createButton('🔊 音声テスト', '#4caf50', () => {
+      console.log('🔊 音声テストボタンが押されました');
+      
       if (!audioInitialized) {
+        console.log('⚠️ 音声システム未初期化。初期化を実行...');
         initializeAudio();
+        setTimeout(() => {
+          console.log('🔄 初期化後に音声テスト実行');
+          testAudioFunction();
+        }, 3000);
+      } else {
+        testAudioFunction();
       }
-      speakCallQueued('音声テストを開始いたします。受付番号1番の患者様、1番診察台へお越しください');
-      playCallSound();
-      updateAudioStatus();
+      
+      function testAudioFunction() {
+        const voices = speechSynthesis.getVoices();
+        console.log(`🎵 音声テスト実行: ${voices.length}個の音声エンジン`);
+        
+        if (voices.length === 0) {
+          console.error('❌ 音声エンジンが読み込まれていません');
+          showTemporaryMessage('❌ 音声エンジンが読み込まれていません', 3000);
+          return;
+        }
+        
+        // チャイム音を先に再生
+        playCallSound();
+        
+        // 少し待ってから音声再生
+        setTimeout(() => {
+          speakCallQueued('音声テストを開始いたします。受付番号1番の患者様、1番診察台へお越しください');
+        }, 1000);
+        
+        updateAudioStatus();
+      }
     });
     controlPanel.appendChild(testButton);
     
