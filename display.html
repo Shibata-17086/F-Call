@@ -400,44 +400,62 @@
   </style>
 </head>
 <body>
-  <div class="notification" id="notification">お呼びしました</div>
+  <!-- 通知表示 -->
+  <div class="notification" id="notification" style="display: none;">
+    📢 お呼びしました
+  </div>
   
+  <!-- メインコンテナ -->
   <div class="display-container">
-    <div class="header-section">
-      <div class="header-time">
-        <div class="digital-clock" id="digitalClock">00:00:00</div>
-        <div class="date-display" id="dateDisplay"></div>
+    
+    <!-- ヘッダー部分 -->
+    <div class="display-header">
+      <div class="display-title">F-Call 待合室案内システム</div>
+      <div class="display-status" id="statusIndicator">🟢 営業中</div>
+    </div>
+    
+    <!-- メイン表示エリア -->
+    <div class="display-main">
+      <div class="display-content">
+        <div id="displayNumber" class="display-number">---</div>
+        <div id="displaySeat" class="display-seat">お待ちください</div>
+      </div>
+    </div>
+    
+    <!-- フッター情報エリア -->
+    <div class="display-footer">
+      
+      <!-- 時計表示 -->
+      <div class="display-clock">
+        <div class="current-time" id="digitalClock">00:00:00</div>
+        <div class="current-date" id="dateDisplay"></div>
         <div class="business-hours" id="businessHours">営業時間: 9:00-18:00</div>
       </div>
-    </div>
-    
-    <div class="current-number-section">
-      <div class="display-title">只今お呼びしている番号</div>
-      <div id="displayNumber" class="display-number">---</div>
-      <div id="displaySeat" class="display-seat">お待ちください</div>
-    </div>
-    
-    <div class="info-section">
-      <h2 class="info-title">待合状況</h2>
-      <div class="info-grid">
-        <div class="info-item">
-          <p class="info-item-title">待ち人数</p>
-          <p class="info-item-value" id="waitingCount">0<span class="info-item-unit">人</span></p>
-        </div>
-        <div class="info-item">
-          <p class="info-item-title">予想待ち時間</p>
-          <p class="info-item-value" id="estimatedWait">0<span class="info-item-unit">分</span></p>
-        </div>
-        <div class="status-indicator" id="statusIndicator">
-          🟢 営業中
+      
+      <!-- 履歴表示 -->
+      <div class="display-history">
+        <div class="history-title">最近お呼びした番号</div>
+        <div id="historyList" class="history-list">
+          <div class="no-history-message">呼び出し履歴はありません</div>
         </div>
       </div>
+      
+      <!-- 待機情報 -->
+      <div class="display-waiting">
+        <div class="waiting-info">
+          <div class="info-item">
+            <div class="info-item-label">待ち人数</div>
+            <div class="info-item-value" id="waitingCount">0<span class="info-item-unit">人</span></div>
+          </div>
+          <div class="info-item">
+            <div class="info-item-label">予想待ち時間</div>
+            <div class="info-item-value" id="estimatedWait">0<span class="info-item-unit">分</span></div>
+          </div>
+        </div>
+      </div>
+      
     </div>
     
-    <div class="history-section">
-      <h2 class="history-title">最近お呼びした番号</h2>
-      <div id="historyList" class="history-list"></div>
-    </div>
   </div>
   
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>

@@ -177,3 +177,333 @@ h1{color:#2c3e50;margin-bottom:3rem;font-size:3.5rem;font-weight:300;letter-spac
     font-size: 1rem;
   }
 }
+
+/* ======================
+   待合室画面専用スタイル（フルHD最適化）
+   ====================== */
+
+/* 待合室画面のフルスクリーン基本設定 */
+.display-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ヘッダー部分 */
+.display-header {
+  height: 15vh;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4rem;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border-bottom: 3px solid rgba(255, 255, 255, 0.2);
+}
+
+.display-title {
+  font-size: 3.5rem;
+  font-weight: 300;
+  letter-spacing: 3px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.display-status {
+  font-size: 2rem;
+  padding: 1rem 2rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50px;
+  backdrop-filter: blur(5px);
+}
+
+/* メイン表示エリア */
+.display-main {
+  height: 70vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.display-content {
+  text-align: center;
+  max-width: 80%;
+}
+
+/* 現在の呼び出し表示 */
+.display-number {
+  font-size: 12rem;
+  font-weight: 900;
+  text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+  margin: 2rem 0;
+  letter-spacing: 5px;
+  transition: all 0.5s ease;
+}
+
+.display-number.calling {
+  animation: pulse 2s infinite;
+  color: #ffff00;
+  text-shadow: 0 0 20px #ffff00, 4px 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.display-seat {
+  font-size: 4.5rem;
+  font-weight: 500;
+  margin: 2rem 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  transition: all 0.5s ease;
+}
+
+.display-seat.calling {
+  color: #ffff00;
+  text-shadow: 0 0 15px #ffff00, 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* フッター情報エリア */
+.display-footer {
+  height: 15vh;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 2rem;
+  padding: 0 3rem;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border-top: 3px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 時計表示 */
+.display-clock {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.current-time {
+  font-size: 3rem;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.current-date {
+  font-size: 1.8rem;
+  opacity: 0.9;
+  margin-top: 0.5rem;
+}
+
+/* 履歴表示 */
+.display-history {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.history-title {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  text-align: center;
+  opacity: 0.9;
+}
+
+.history-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  max-height: 8vh;
+  overflow: hidden;
+}
+
+.history-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 15px;
+  padding: 0.8rem 1.2rem;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  min-width: 120px;
+  transition: all 0.3s ease;
+}
+
+.history-item.current {
+  background: rgba(255, 255, 0, 0.3);
+  border-color: #ffff00;
+  box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+}
+
+.history-number {
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+.history-seat {
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+
+.history-time {
+  font-size: 1rem;
+  opacity: 0.7;
+  margin-top: 0.3rem;
+}
+
+/* 待機情報 */
+.display-waiting {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.waiting-info {
+  text-align: center;
+}
+
+.info-item {
+  margin: 0.5rem 0;
+}
+
+.info-item-label {
+  font-size: 1.4rem;
+  opacity: 0.9;
+}
+
+.info-item-value {
+  font-size: 2.5rem;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.info-item-unit {
+  font-size: 1.8rem;
+  margin-left: 0.5rem;
+}
+
+/* アニメーション */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 通知表示 */
+.notification {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: #ffff00;
+  padding: 3rem 4rem;
+  border-radius: 20px;
+  font-size: 3.5rem;
+  font-weight: bold;
+  text-align: center;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  border: 3px solid #ffff00;
+  box-shadow: 0 0 30px rgba(255, 255, 0, 0.5);
+  animation: fadeIn 0.5s ease;
+}
+
+/* 営業時間表示 */
+.business-hours {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 1rem;
+  margin: 1rem 0;
+  backdrop-filter: blur(5px);
+}
+
+.business-hours.closed {
+  background: rgba(255, 0, 0, 0.3);
+  border: 2px solid #ff6b6b;
+}
+
+.business-hours.lunch {
+  background: rgba(255, 165, 0, 0.3);
+  border: 2px solid #ffa726;
+}
+
+/* フルHD専用最適化 */
+@media (min-width: 1920px) and (min-height: 1080px) {
+  .display-title {
+    font-size: 4.5rem;
+  }
+  
+  .display-number {
+    font-size: 16rem;
+    margin: 3rem 0;
+  }
+  
+  .display-seat {
+    font-size: 6rem;
+    margin: 3rem 0;
+  }
+  
+  .current-time {
+    font-size: 4rem;
+  }
+  
+  .current-date {
+    font-size: 2.2rem;
+  }
+  
+  .history-number {
+    font-size: 2.2rem;
+  }
+  
+  .history-seat {
+    font-size: 1.5rem;
+  }
+  
+  .info-item-value {
+    font-size: 3.5rem;
+  }
+  
+  .info-item-unit {
+    font-size: 2.2rem;
+  }
+  
+  .notification {
+    font-size: 4.5rem;
+    padding: 4rem 5rem;
+  }
+}
+
+/* 4K対応 */
+@media (min-width: 3840px) and (min-height: 2160px) {
+  .display-title {
+    font-size: 6rem;
+  }
+  
+  .display-number {
+    font-size: 20rem;
+  }
+  
+  .display-seat {
+    font-size: 8rem;
+  }
+  
+  .current-time {
+    font-size: 5rem;
+  }
+  
+  .notification {
+    font-size: 6rem;
+    padding: 5rem 6rem;
+  }
+}
