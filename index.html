@@ -4,17 +4,100 @@
   <meta charset="UTF-8">
   <title>受付番号発行</title>
   <link rel="stylesheet" href="styles.css">
+  <style>
+    .priority-section {
+      margin: 1.5rem 0;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    .priority-select {
+      padding: 0.5rem;
+      font-size: 1rem;
+      margin: 0.5rem;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+    .business-hours-warning {
+      background: #fff3cd;
+      color: #856404;
+      padding: 1rem;
+      border-radius: 5px;
+      margin: 1rem 0;
+      border: 1px solid #ffeaa7;
+    }
+    .ticket-status {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: #e3f2fd;
+      border-radius: 8px;
+      border: 1px solid #bbdefb;
+    }
+    .status-item {
+      margin: 0.5rem 0;
+      font-size: 1.1rem;
+    }
+    .priority-description {
+      font-size: 0.9rem;
+      color: #666;
+      margin-top: 0.5rem;
+    }
+    .queue-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 0.5rem 0;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
     <h1>受付番号発行</h1>
-    <div class="ticket-info">
-      <p>現在の待ち人数: <span id="waiting-count">0</span>人</p>
-      <p>予想待ち時間: <span id="waiting-time">0</span>分</p>
+    
+    <div id="business-hours" class="business-hours-warning" style="display: none;">
+      <strong>現在は営業時間外です</strong><br>
+      営業時間: 9:00-18:00 (昼休み: 12:00-13:00)
     </div>
+    
+    <div class="ticket-info">
+      <div class="queue-info">
+        <span>現在の待ち人数:</span>
+        <span id="waiting-count">0人</span>
+      </div>
+      <div class="queue-info">
+        <span>予想待ち時間:</span>
+        <span id="waiting-time">0分</span>
+      </div>
+    </div>
+    
+    <div class="priority-section">
+      <label for="priority-select"><strong>受診タイプを選択してください:</strong></label>
+      <select id="priority-select" class="priority-select">
+        <option value="normal">一般診察</option>
+        <option value="appointment">予約診察</option>
+        <option value="urgent">緊急診察</option>
+      </select>
+      <div class="priority-description">
+        • 緊急診察: 急を要する症状の場合<br>
+        • 予約診察: 事前に予約をされている場合<br>
+        • 一般診察: 通常の診察・検診等
+      </div>
+    </div>
+    
     <div class="number-display" id="ticket-number">---</div>
+    
     <div class="buttons">
       <button id="issue-ticket" class="btn primary">受付番号を発行</button>
+    </div>
+    
+    <div class="ticket-status" id="ticket-status" style="display: none;">
+      <h3>あなたの受付状況</h3>
+      <div class="status-item">
+        待ち順番: <span id="queue-position">---</span>
+      </div>
+      <div class="status-item">
+        予想待ち時間: <span id="estimated-time">---</span>
+      </div>
     </div>
   </div>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>

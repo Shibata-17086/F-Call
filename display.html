@@ -15,10 +15,15 @@
       font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
       overflow: hidden;
     }
+    
     .display-container { 
       display: grid;
       grid-template-columns: 1.2fr 0.8fr;
-      grid-template-areas: "current history";
+      grid-template-areas: 
+        "header header"
+        "current info"
+        "current history";
+      grid-template-rows: auto 1fr 1fr;
       gap: 2rem;
       width: 100%; 
       max-width: 1800px; 
@@ -26,6 +31,67 @@
       padding: 2rem;
       height: calc(100vh - 8rem);
     }
+    
+    .header-section {
+      grid-area: header;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ffffff;
+      border-radius: 0.5rem;
+      padding: 1rem 2rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      margin-bottom: 1rem;
+    }
+    
+    .hospital-info {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    
+    .hospital-name {
+      font-size: 1.8rem;
+      font-weight: 500;
+      color: #2c80b9;
+      margin: 0;
+    }
+    
+    .hospital-subtitle {
+      font-size: 1rem;
+      color: #666;
+      margin: 0.2rem 0 0 0;
+    }
+    
+    .header-time {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.3rem;
+    }
+    
+    .digital-clock {
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: #333;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .date-display {
+      font-size: 1rem;
+      color: #666;
+    }
+    
+    .business-hours {
+      font-size: 0.9rem;
+      color: #888;
+      background: #f0f8ff;
+      padding: 0.2rem 0.6rem;
+      border-radius: 0.5rem;
+      border: 1px solid #ddd;
+    }
+    
     .current-number-section { 
       grid-area: current;
       background: #ffffff;
@@ -38,6 +104,7 @@
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
       border: 1px solid rgba(0, 0, 0, 0.05);
     }
+    
     .display-title { 
       font-size: 2.2rem; 
       margin-bottom: 2rem; 
@@ -48,6 +115,7 @@
       width: 100%;
       font-weight: 400;
     }
+    
     .display-number { 
       font-size: 14rem; 
       font-weight: bold; 
@@ -55,7 +123,24 @@
       margin: 1rem 0; 
       line-height: 1; 
       text-align: center;
+      transition: all 0.3s ease;
     }
+    
+    .display-number.calling {
+      animation: pulse-highlight 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-highlight {
+      0%, 100% { 
+        transform: scale(1);
+        color: #2c80b9;
+      }
+      50% { 
+        transform: scale(1.02);
+        color: #4ca3d8;
+      }
+    }
+    
     .display-seat {
       font-size: 3rem;
       font-weight: 500;
@@ -65,7 +150,99 @@
       background: #4ca3d8;
       border-radius: 0.5rem;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
     }
+    
+    .display-seat.calling {
+      animation: seat-glow 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes seat-glow {
+      0%, 100% { 
+        background: #4ca3d8;
+        transform: translateY(0);
+      }
+      50% { 
+        background: #5bb3e8;
+        transform: translateY(-3px);
+      }
+    }
+    
+    .info-section {
+      grid-area: info;
+      background: #ffffff;
+      border-radius: 0.5rem;
+      padding: 2rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    
+    .info-title {
+      font-size: 1.6rem;
+      font-weight: 400;
+      color: #2c80b9;
+      text-align: center;
+      margin: 0;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      padding-bottom: 0.5rem;
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    
+    .info-item {
+      background: #f8faff;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      text-align: center;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .info-item-title {
+      font-size: 0.9rem;
+      color: #666;
+      margin: 0 0 0.5rem 0;
+    }
+    
+    .info-item-value {
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: #2c80b9;
+      margin: 0;
+    }
+    
+    .info-item-unit {
+      font-size: 0.9rem;
+      color: #888;
+      margin-left: 0.2rem;
+    }
+    
+    .status-indicator {
+      grid-column: 1 / -1;
+      background: #28a745;
+      color: white;
+      padding: 0.8rem;
+      border-radius: 0.5rem;
+      text-align: center;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+    
+    .status-indicator.closed {
+      background: #dc3545;
+    }
+    
+    .status-indicator.lunch {
+      background: #ffc107;
+      color: #333;
+    }
+    
     .history-section { 
       grid-area: history;
       background: #ffffff;
@@ -76,50 +253,77 @@
       flex-direction: column;
       border: 1px solid rgba(0, 0, 0, 0.05);
     }
+    
     .history-title { 
-      font-size: 2rem; 
-      margin-bottom: 2rem; 
+      font-size: 1.6rem; 
+      margin-bottom: 1.5rem; 
       color: #2c80b9; 
       text-align: center;
       border-bottom: 1px solid rgba(0, 0, 0, 0.1);
       padding-bottom: 0.5rem;
       font-weight: 400;
     }
+    
     .history-list { 
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 1.5rem;
+      gap: 1rem;
       justify-content: center;
       overflow-y: auto;
       flex-grow: 1;
       padding: 0.5rem;
     }
+    
     .history-item { 
       color: #333; 
       background: #f5f9fc; 
       border-radius: 0.5rem; 
-      padding: 1.5rem 1rem; 
+      padding: 1.2rem 1rem; 
       text-align: center;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
       border: 1px solid rgba(0, 0, 0, 0.05);
       transition: all 0.2s ease;
     }
+    
     .history-item:hover {
       background: #e9f2f9;
       transform: translateY(-2px);
     }
-    .digital-clock {
-      position: fixed;
-      top: 1rem;
-      right: 1rem;
-      font-size: 1.5rem;
-      color: #333;
-      background: #ffffff;
-      padding: 0.5rem 1rem;
-      border-radius: 0.5rem;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      border: 1px solid rgba(0, 0, 0, 0.05);
+    
+    .history-item.current {
+      background: #fff3cd;
+      border-color: #ffc107;
+      animation: current-pulse 2s ease-in-out infinite;
     }
+    
+    @keyframes current-pulse {
+      0%, 100% { 
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      }
+      50% { 
+        box-shadow: 0 4px 10px rgba(255, 193, 7, 0.3);
+      }
+    }
+    
+    .history-number {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #2c80b9;
+      margin: 0;
+    }
+    
+    .history-seat {
+      font-size: 1rem;
+      color: #666;
+      margin: 0.3rem 0 0 0;
+    }
+    
+    .history-time {
+      font-size: 0.8rem;
+      color: #888;
+      margin: 0.2rem 0 0 0;
+    }
+    
     .notification {
       position: fixed;
       top: 0;
@@ -127,21 +331,28 @@
       right: 0;
       background: #4ca3d8;
       color: #fff;
-      padding: 1rem;
+      padding: 1.5rem;
       text-align: center;
       font-size: 2rem;
       font-weight: 500;
       z-index: 1000;
-      animation: fadeInOut 10s ease-in-out infinite;
       display: none;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     }
-    @keyframes fadeInOut {
-      0%, 100% { opacity: 0; }
-      10%, 90% { opacity: 1; }
+    
+    .notification.show {
+      display: block;
+      animation: notification-slide 8s ease-in-out;
     }
+    
+    @keyframes notification-slide {
+      0% { transform: translateY(-100%); }
+      10%, 90% { transform: translateY(0); }
+      100% { transform: translateY(-100%); }
+    }
+    
     .no-history-message {
-      font-size: 1.5rem;
+      font-size: 1.2rem;
       color: #888;
       text-align: center;
       padding: 2rem;
@@ -149,28 +360,11 @@
       align-self: center;
       justify-self: center;
     }
-    .date-display {
-      position: fixed;
-      top: 1rem;
-      left: 1rem;
-      font-size: 1.3rem;
-      color: #333;
-      background: #ffffff;
-      padding: 0.5rem 1rem;
-      border-radius: 0.5rem;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      border: 1px solid rgba(0, 0, 0, 0.05);
-    }
-    .hospital-name {
-      position: fixed;
-      bottom: 1rem;
-      left: 0;
-      right: 0;
-      text-align: center;
-      font-size: 1.4rem;
-      color: #4ca3d8;
-      font-weight: 500;
-    }
+    
+    /* Priority indicators */
+    .priority-urgent { border-left: 3px solid #dc3545; }
+    .priority-appointment { border-left: 3px solid #ffc107; }
+    .priority-normal { border-left: 3px solid #28a745; }
     
     /* レスポンシブデザイン */
     @media (max-width: 1400px) {
@@ -183,41 +377,68 @@
       .display-container {
         grid-template-columns: 1fr;
         grid-template-areas: 
+          "header"
           "current"
+          "info"
           "history";
         height: auto;
       }
       .display-number { font-size: 10rem; }
       .display-seat { font-size: 2.5rem; }
-      .history-section { max-height: 500px; }
+      .info-grid { grid-template-columns: repeat(4, 1fr); }
     }
     
     @media (max-width: 768px) {
-      .display-title, .history-title { font-size: 1.8rem; }
+      .display-title, .history-title, .info-title { font-size: 1.5rem; }
       .display-number { font-size: 8rem; }
       .display-seat { font-size: 2rem; }
+      .hospital-name { font-size: 1.5rem; }
+      .digital-clock { font-size: 1.5rem; }
+      .info-grid { grid-template-columns: repeat(2, 1fr); }
+      .history-list { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
 <body>
   <div class="notification" id="notification">お呼びしました</div>
-  <div class="digital-clock" id="digitalClock">00:00:00</div>
-  <div class="date-display" id="dateDisplay"></div>
   
   <div class="display-container">
+    <div class="header-section">
+      <div class="header-time">
+        <div class="digital-clock" id="digitalClock">00:00:00</div>
+        <div class="date-display" id="dateDisplay"></div>
+        <div class="business-hours" id="businessHours">営業時間: 9:00-18:00</div>
+      </div>
+    </div>
+    
     <div class="current-number-section">
       <div class="display-title">只今お呼びしている番号</div>
       <div id="displayNumber" class="display-number">---</div>
       <div id="displaySeat" class="display-seat">お待ちください</div>
     </div>
     
+    <div class="info-section">
+      <h2 class="info-title">待合状況</h2>
+      <div class="info-grid">
+        <div class="info-item">
+          <p class="info-item-title">待ち人数</p>
+          <p class="info-item-value" id="waitingCount">0<span class="info-item-unit">人</span></p>
+        </div>
+        <div class="info-item">
+          <p class="info-item-title">予想待ち時間</p>
+          <p class="info-item-value" id="estimatedWait">0<span class="info-item-unit">分</span></p>
+        </div>
+        <div class="status-indicator" id="statusIndicator">
+          🟢 営業中
+        </div>
+      </div>
+    </div>
+    
     <div class="history-section">
-      <div class="history-title">最近お呼びした番号</div>
+      <h2 class="history-title">最近お呼びした番号</h2>
       <div id="historyList" class="history-list"></div>
     </div>
   </div>
-  
-  <div class="hospital-name">医療法人社団 〇〇歯科医院</div>
   
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="display.js"></script>

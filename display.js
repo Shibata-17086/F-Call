@@ -1,9 +1,8 @@
 // 接続先のURLを動的に決定
 const getServerUrl = () => {
-  // 本番環境では現在接続しているホストを使用
   const currentHost = window.location.hostname;
-  const port = 3001; // サーバーのポート番号
-  return `http://${currentHost}:${port}`;
+  const port = 3443;
+  return `https://${currentHost}:${port}`;
 };
 
 const socket = io(getServerUrl());
@@ -14,7 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const historyList = document.getElementById('historyList');
   const digitalClock = document.getElementById('digitalClock');
   const dateDisplay = document.getElementById('dateDisplay');
+  const businessHours = document.getElementById('businessHours');
   const notification = document.getElementById('notification');
+  const waitingCount = document.getElementById('waitingCount');
+  const estimatedWait = document.getElementById('estimatedWait');
+  const statusIndicator = document.getElementById('statusIndicator');
 
   let calledHistory = [];
   let currentCall = null;
@@ -22,10 +25,39 @@ document.addEventListener('DOMContentLoaded', () => {
   let waitMinutesPerPerson = 5;
   let lastCallNumber = null;
   let lastCallSeat = null;
+  let businessHoursConfig = {
+    start: '09:00',
+    end: '18:00',
+    lunchStart: '12:00',
+    lunchEnd: '13:00'
+  };
 
   // 音声再生キュー
   let speechQueue = [];
   let isSpeaking = false;
+
+  // シンプルな効果音作成
+  function playCallSound() {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (error) {
+      console.log('Audio not supported');
+    }
+  }
 
   function updateClock() {
     const now = new Date();
@@ -36,6 +68,44 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     dateDisplay.textContent = now.toLocaleDateString('ja-JP', options);
+    
+    updateBusinessHoursDisplay(now);
+  }
+
+  function updateBusinessHoursDisplay(now) {
+    const isOpen = isBusinessOpen(now);
+    const isLunchTime = isLunchBreak(now);
+    
+    businessHours.textContent = `営業時間: ${businessHoursConfig.start}-${businessHoursConfig.end}`;
+    
+    if (isLunchTime) {
+      statusIndicator.innerHTML = '🕐 昼休み中';
+      statusIndicator.className = 'status-indicator lunch';
+    } else if (isOpen) {
+      statusIndicator.innerHTML = '🟢 営業中';
+      statusIndicator.className = 'status-indicator';
+    } else {
+      statusIndicator.innerHTML = '🔴 営業時間外';
+      statusIndicator.className = 'status-indicator closed';
+    }
+  }
+
+  function isBusinessOpen(date = new Date()) {
+    const day = date.getDay();
+    if (day === 0) return false; // 日曜休み
+    
+    const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    
+    if (time >= businessHoursConfig.lunchStart && time < businessHoursConfig.lunchEnd) {
+      return false;
+    }
+    
+    return time >= businessHoursConfig.start && time < businessHoursConfig.end;
+  }
+
+  function isLunchBreak(date = new Date()) {
+    const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    return time >= businessHoursConfig.lunchStart && time < businessHoursConfig.lunchEnd;
   }
 
   setInterval(updateClock, 1000);
@@ -43,14 +113,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function showNotification(message) {
     notification.textContent = message;
-    notification.style.display = 'block';
-
+    notification.className = 'notification show';
+    
     setTimeout(() => {
-      notification.style.display = 'none';
+      notification.className = 'notification';
     }, 8000);
   }
 
-  // 音声再生キュー方式で呼び出しを再生する関数
+  // 音声再生キュー方式
   function speakCallQueued(text) {
     speechQueue.push(text);
     playNextSpeech();
@@ -62,6 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const text = speechQueue.shift();
     const msg = new window.SpeechSynthesisUtterance(text);
     msg.lang = 'ja-JP';
+    msg.rate = 0.9;
+    msg.pitch = 1.0;
     msg.onend = () => {
       isSpeaking = false;
       setTimeout(() => {
@@ -71,13 +143,62 @@ document.addEventListener('DOMContentLoaded', () => {
     window.speechSynthesis.speak(msg);
   }
 
+  function getPriorityLabel(priority) {
+    switch (priority) {
+      case 'urgent': return '🚨 緊急';
+      case 'appointment': return '📅 予約';
+      case 'normal': 
+      default: return '一般';
+    }
+  }
+
+  function getPriorityClass(priority) {
+    return `priority-${priority || 'normal'}`;
+  }
+
+  function calculateEstimatedWaitTime() {
+    if (tickets.length === 0) return 0;
+    
+    const avgTreatmentTime = waitMinutesPerPerson || 5;
+    const waitTime = tickets.length * avgTreatmentTime;
+    return Math.max(waitTime, 5);
+  }
+
+  function updateWaitingInfo() {
+    const waitCount = tickets.length;
+    const estimatedMinutes = calculateEstimatedWaitTime();
+    
+    waitingCount.innerHTML = `${waitCount}<span class="info-item-unit">人</span>`;
+    estimatedWait.innerHTML = `${estimatedMinutes}<span class="info-item-unit">分</span>`;
+    
+    if (waitCount > 0) {
+      waitingCount.style.color = '#2c80b9';
+      estimatedWait.style.color = '#2c80b9';
+    } else {
+      waitingCount.style.color = '#28a745';
+      estimatedWait.style.color = '#28a745';
+    }
+  }
+
   function updateDisplay() {
+    // 営業時間の表示を更新
+    updateBusinessHoursDisplay();
+    
+    // 現在の呼び出し表示
     if (currentCall && currentCall.number) {
-      // 番号も座席も前回と同じなら何もしない
       const seatName = currentCall.seat ? currentCall.seat.name : '';
+      
       if (lastCallNumber !== currentCall.number || lastCallSeat !== seatName) {
-        showNotification(`${currentCall.number}番の方、${seatName}へどうぞ`);
-        speakCallQueued(`受付番号${currentCall.number}番の方、${seatName}へどうぞ`);
+        playCallSound();
+        
+        const priorityLabel = getPriorityLabel(currentCall.priority);
+        const message = priorityLabel === '一般' 
+          ? `${currentCall.number}番の方、${seatName}へどうぞ`
+          : `${priorityLabel} ${currentCall.number}番の方、${seatName}へどうぞ`;
+        
+        showNotification(message);
+        speakCallQueued(`受付番号${currentCall.number}番の方、${seatName}へお越しください`);
+        
         lastCallNumber = currentCall.number;
         lastCallSeat = seatName;
       }
@@ -85,45 +206,87 @@ document.addEventListener('DOMContentLoaded', () => {
       displayNumber.textContent = currentCall.number;
       displaySeat.textContent = currentCall.seat ? `${currentCall.seat.name}へどうぞ` : 'お待ちください';
       
-      displayNumber.classList.add('highlight');
-      setTimeout(() => {
-        displayNumber.classList.remove('highlight');
-      }, 1500);
+      displayNumber.className = 'display-number calling';
+      displaySeat.className = 'display-seat calling';
     } else {
       displayNumber.textContent = '---';
       displaySeat.textContent = 'お待ちください';
+      displayNumber.className = 'display-number';
+      displaySeat.className = 'display-seat';
     }
 
+    updateWaitingInfo();
+    updateHistoryDisplay();
+  }
+
+  function updateHistoryDisplay() {
     historyList.innerHTML = '';
     
-    if (calledHistory.length === 0) {
+    // 現在の呼び出しを履歴の最上位に表示
+    let displayHistory = [...calledHistory];
+    if (currentCall && currentCall.number) {
+      const existsInHistory = calledHistory.some(item => 
+        item.number === currentCall.number && 
+        item.seat && item.seat.id === currentCall.seat.id
+      );
+      
+      if (!existsInHistory) {
+        displayHistory.unshift({
+          ...currentCall,
+          isCurrent: true,
+          time: new Date().toLocaleTimeString('ja-JP', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })
+        });
+      }
+    }
+    
+    const historyToShow = displayHistory.slice(0, 6);
+    
+    if (historyToShow.length === 0) {
       const emptyMsg = document.createElement('div');
       emptyMsg.textContent = '呼び出し履歴はありません';
       emptyMsg.className = 'no-history-message';
       historyList.appendChild(emptyMsg);
     } else {
-      const historyToShow = calledHistory
-        .filter(item => !currentCall || item.number !== currentCall.number)
-        .slice(0, 6);
-        
-      historyToShow.forEach(item => {
+      historyToShow.forEach((item) => {
         const div = document.createElement('div');
-        div.className = 'history-item';
+        const priorityClass = getPriorityClass(item.priority);
+        const isCurrent = item.isCurrent;
+        
+        div.className = `history-item ${priorityClass} ${isCurrent ? 'current' : ''}`;
+        
         div.innerHTML = `
-          <div style="font-size:2.2rem;font-weight:bold;color:#4ca3d8;">${item.number}</div>
-          <div style="font-size:1.1rem;color:#666;margin-top:0.5rem;">${item.seat ? item.seat.name : ''}</div>
+          <div class="history-number">${item.number}</div>
+          <div class="history-seat">${item.seat ? item.seat.name : ''}</div>
+          <div class="history-time">${item.time || ''}</div>
+          ${isCurrent ? '<div style="font-size: 0.7rem; color: #f39c12; margin-top: 0.2rem;">📢 呼び出し中</div>' : ''}
         `;
+        
         historyList.appendChild(div);
       });
     }
   }
 
+  // Socket.io イベントハンドラ
   socket.on('init', (data) => {
     console.log('初期データ受信:', data);
     calledHistory = data.calledHistory || [];
     currentCall = data.currentCall;
     tickets = data.tickets || [];
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
+    
+    if (data.businessHours) {
+      businessHoursConfig = {
+        start: data.businessHours.start || businessHoursConfig.start,
+        end: data.businessHours.end || businessHoursConfig.end,
+        lunchStart: data.businessHours.lunchBreak?.start || businessHoursConfig.lunchStart,
+        lunchEnd: data.businessHours.lunchBreak?.end || businessHoursConfig.lunchEnd
+      };
+      console.log('営業時間設定受信:', businessHoursConfig);
+    }
+    
     updateDisplay();
   });
 
@@ -133,19 +296,67 @@ document.addEventListener('DOMContentLoaded', () => {
     currentCall = data.currentCall;
     tickets = data.tickets || [];
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
+    
+    if (data.businessHours) {
+      businessHoursConfig = {
+        start: data.businessHours.start || businessHoursConfig.start,
+        end: data.businessHours.end || businessHoursConfig.end,
+        lunchStart: data.businessHours.lunchBreak?.start || businessHoursConfig.lunchStart,
+        lunchEnd: data.businessHours.lunchBreak?.end || businessHoursConfig.lunchEnd
+      };
+      console.log('営業時間設定更新:', businessHoursConfig);
+    }
+    
     updateDisplay();
   });
-  
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes highlight {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.03); }
-      100% { transform: scale(1); }
+
+  // 接続状態の監視
+  socket.on('connect', () => {
+    console.log('サーバーに接続しました');
+  });
+
+  socket.on('disconnect', () => {
+    console.log('サーバーとの接続が切断されました');
+    statusIndicator.innerHTML = '🔴 接続エラー';
+    statusIndicator.className = 'status-indicator closed';
+  });
+
+  // キーボードショートカット
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key) {
+        case 'r':
+          e.preventDefault();
+          location.reload();
+          break;
+        case 'm':
+          e.preventDefault();
+          window.speechSynthesis.cancel();
+          isSpeaking = false;
+          speechQueue = [];
+          break;
+      }
     }
-    .highlight {
-      animation: highlight 1.5s ease;
+  });
+
+  // 画面の可視性変更時の処理
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      window.speechSynthesis.cancel();
+      isSpeaking = false;
+    } else {
+      updateClock();
     }
-  `;
-  document.head.appendChild(style);
+  });
+
+  // フルスクリーンモード切り替え
+  document.addEventListener('dblclick', () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  });
+
+  console.log('F-Call 待合室表示システム初期化完了');
 });

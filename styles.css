@@ -1,25 +1,179 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:"Helvetica Neue",Arial,"Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,sans-serif;background-color:#f0f4f8;color:#333;display:flex;justify-content:center;align-items:center;min-height:100vh}
-.container{text-align:center;background-color:white;padding:2rem;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.1);width:90%;max-width:800px}
-h1{color:#2c3e50;margin-bottom:2rem;font-size:2.5rem}
-.number-display{font-size:4rem;font-weight:bold;text-align:center;margin:2rem 0;color:#2980b9}
-.ticket-info{text-align:center;margin-bottom:2rem;font-size:1.2rem}
-.buttons{display:flex;justify-content:center}
-.btn{padding:0.8rem 1.5rem;border:none;border-radius:5px;font-size:1rem;cursor:pointer;transition:background-color .3s}
+
+/* FHD対応：基本コンテナサイズ調整 */
+.container{text-align:center;background-color:white;padding:3rem;border-radius:15px;box-shadow:0 4px 20px rgba(0,0,0,.15);width:90%;max-width:1200px;margin:2rem auto}
+
+/* FHD対応：ヘッダーサイズ拡大 */
+h1{color:#2c3e50;margin-bottom:3rem;font-size:3.5rem;font-weight:300;letter-spacing:2px}
+
+/* FHD対応：番号表示を大きく */
+.number-display{font-size:6rem;font-weight:bold;text-align:center;margin:3rem 0;color:#2980b9;text-shadow:2px 2px 4px rgba(0,0,0,0.1)}
+
+/* FHD対応：チケット情報表示を拡大 */
+.ticket-info{text-align:center;margin-bottom:3rem;font-size:1.8rem;background:#e8f4fd;padding:2rem;border-radius:10px;border:1px solid #bee5eb}
+
+/* FHD対応：ボタンを大きく */
+.buttons{display:flex;justify-content:center;margin:3rem 0}
+.btn{padding:1.5rem 3rem;border:none;border-radius:8px;font-size:1.4rem;cursor:pointer;transition:all .3s;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
 .btn.primary{background-color:#3498db;color:white}
 .btn.danger{background-color:#e74c3c;color:white}
-.btn:hover{opacity:0.9}
+.btn:hover{opacity:0.9;transform:translateY(-2px);box-shadow:0 4px 15px rgba(0,0,0,0.2)}
+
+/* FHD対応：優先度セクションの調整 */
+.priority-section {
+  margin: 2.5rem 0;
+  padding: 2rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  font-size: 1.2rem;
+}
+
+.priority-select {
+  padding: 1rem;
+  font-size: 1.3rem;
+  margin: 1rem;
+  border-radius: 8px;
+  border: 2px solid #ddd;
+  width: 300px;
+}
+
+/* FHD対応：ビジネス時間警告の調整 */
+.business-hours-warning {
+  background: #fff3cd;
+  color: #856404;
+  padding: 2rem;
+  border-radius: 10px;
+  margin: 2rem 0;
+  border: 2px solid #ffeaa7;
+  font-size: 1.3rem;
+}
+
+/* FHD対応：チケット状況表示の調整 */
+.ticket-status {
+  margin-top: 2.5rem;
+  padding: 2rem;
+  background: #e3f2fd;
+  border-radius: 12px;
+  border: 2px solid #bbdefb;
+  font-size: 1.2rem;
+}
+
+.status-item {
+  margin: 1rem 0;
+  font-size: 1.4rem;
+}
+
+.priority-description {
+  font-size: 1.1rem;
+  color: #666;
+  margin-top: 1rem;
+  line-height: 1.6;
+}
+
+.queue-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1rem 0;
+  font-weight: 500;
+}
+
 /* スタッフ画面用スタイル */
-.staff-container{max-width:1000px}
+.staff-container{max-width:1400px;padding:2rem}
 .section{margin-bottom:2rem;background:white;padding:1.5rem;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
 .section h2{color:#3498db;margin-top:0;margin-bottom:1rem;font-size:1.3rem}
 .number-list,.history-list{display:flex;flex-wrap:wrap;gap:1rem}
 .number-item,.history-item{background:#f8f9fa;border-radius:5px;box-shadow:0 1px 5px rgba(0,0,0,0.1)}
 .number-item select{border:1px solid #ddd;border-radius:4px}
 .history-item{padding:1rem;min-width:120px;text-align:center}
+
 /* メッセージ表示用 */
 .empty-message{width:100%;text-align:center;padding:1rem;color:#666}
-@media (max-width:480px){
-  .number-display{font-size:6rem;padding:1rem}
-  .btn{padding:.8rem 1.5rem;font-size:1rem}
+
+/* FHD対応：レスポンシブデザイン */
+@media (min-width: 1920px) {
+  .container {
+    max-width: 1400px;
+    padding: 4rem;
+  }
+  h1 {
+    font-size: 4rem;
+    margin-bottom: 4rem;
+  }
+  .number-display {
+    font-size: 8rem;
+    margin: 4rem 0;
+  }
+  .ticket-info {
+    font-size: 2rem;
+    padding: 3rem;
+  }
+  .btn {
+    padding: 2rem 4rem;
+    font-size: 1.6rem;
+  }
+  .priority-section {
+    padding: 3rem;
+    font-size: 1.4rem;
+  }
+  .priority-select {
+    font-size: 1.5rem;
+    padding: 1.2rem;
+    width: 350px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .container {
+    max-width: 900px;
+    padding: 2rem;
+  }
+  h1 {
+    font-size: 2.8rem;
+  }
+  .number-display {
+    font-size: 5rem;
+  }
+  .ticket-info {
+    font-size: 1.4rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    max-width: 600px;
+    padding: 1.5rem;
+  }
+  h1 {
+    font-size: 2.2rem;
+  }
+  .number-display {
+    font-size: 4rem;
+  }
+  .btn {
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    width: 95%;
+    padding: 1rem;
+  }
+  h1 {
+    font-size: 1.8rem;
+  }
+  .number-display {
+    font-size: 3rem;
+  }
+  .btn {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+  }
+  .priority-select {
+    width: 250px;
+    font-size: 1rem;
+  }
 }
