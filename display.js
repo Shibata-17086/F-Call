@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       
-      // 音声エンジンの強制読み込み
+      // 音声エンジンの強制読み込み（より積極的なアプローチ）
       const loadVoicesWithRetry = (retryCount = 0) => {
         const voices = speechSynthesis.getVoices();
         console.log(`🎵 音声エンジン読み込み試行 ${retryCount + 1}: ${voices.length}個の音声`);
@@ -86,19 +86,56 @@ document.addEventListener('DOMContentLoaded', () => {
             speakCallQueued('音声システムの初期化が完了しました');
           }, 500);
           
-        } else if (retryCount < 10) {
-          // 音声エンジンの読み込みを強制的に試行
+        } else if (retryCount < 15) { // 試行回数を増加
+          // 音声エンジンの読み込みを強制的に試行（複数の方法）
           console.log('🔄 音声エンジン読み込み中... 再試行します');
           
-          // 空の音声を再生して音声エンジンを活性化
-          const dummyUtterance = new SpeechSynthesisUtterance('');
-          speechSynthesis.speak(dummyUtterance);
-          speechSynthesis.cancel();
+          // 方法1: 空の音声を再生して音声エンジンを活性化
+          try {
+            const dummyUtterance = new SpeechSynthesisUtterance('');
+            dummyUtterance.volume = 0;
+            speechSynthesis.speak(dummyUtterance);
+            speechSynthesis.cancel();
+          } catch (e) {
+            console.log('方法1失敗:', e.message);
+          }
           
-          setTimeout(() => loadVoicesWithRetry(retryCount + 1), 500);
+          // 方法2: 非常に短い音声で強制読み込み
+          if (retryCount > 5) {
+            try {
+              const forceUtterance = new SpeechSynthesisUtterance('a');
+              forceUtterance.volume = 0.01;
+              forceUtterance.rate = 10;
+              speechSynthesis.speak(forceUtterance);
+              setTimeout(() => speechSynthesis.cancel(), 100);
+            } catch (e) {
+              console.log('方法2失敗:', e.message);
+            }
+          }
+          
+          // 方法3: ページリロードを促す（最後の手段）
+          if (retryCount > 10) {
+            console.warn('⚠️ 音声エンジンの読み込みに時間がかかっています');
+            showTemporaryMessage('音声エンジン読み込み中... しばらくお待ちください', 3000);
+          }
+          
+          setTimeout(() => loadVoicesWithRetry(retryCount + 1), retryCount > 10 ? 2000 : 1000);
         } else {
           console.error('❌ 音声エンジンの読み込みに失敗しました');
-          audioInitialized = true; // エラーでも初期化済みにして無限ループを防ぐ
+          console.warn('💡 解決策: ページを再読み込みするか、ブラウザを再起動してください');
+          
+          // フォールバック: 音声なしでも動作するように設定
+          audioInitialized = true;
+          
+          // ユーザーに手動での解決策を提示
+          showPersistentMessage(`
+            ❌ 音声エンジンが読み込まれませんでした<br>
+            🔧 解決策:<br>
+            1. ページを再読み込み (Ctrl+R/Cmd+R)<br>
+            2. ブラウザを再起動<br>
+            3. 他のブラウザを試す (Chrome推奨)<br>
+            4. macOSの場合: システム環境設定 > アクセシビリティ > スピーチ
+          `);
         }
       };
       
@@ -115,6 +152,22 @@ document.addEventListener('DOMContentLoaded', () => {
             loadVoicesWithRetry();
           }
         };
+      }
+      
+      // 追加: システム固有の音声エンジン活性化
+      if (navigator.userAgent.includes('Mac')) {
+        console.log('🍎 macOS検出: 音声エンジン活性化を試行');
+        setTimeout(() => {
+          // macOS特有の音声エンジン活性化
+          try {
+            speechSynthesis.getVoices();
+            if (window.speechSynthesis.onvoiceschanged !== undefined) {
+              speechSynthesis.onvoiceschanged = speechSynthesis.onvoiceschanged;
+            }
+          } catch (e) {
+            console.log('macOS音声活性化エラー:', e.message);
+          }
+        }, 2000);
       }
       
     } catch (error) {
@@ -147,6 +200,56 @@ document.addEventListener('DOMContentLoaded', () => {
         messageDiv.parentNode.removeChild(messageDiv);
       }
     }, duration);
+  }
+
+  // 持続的なメッセージ表示関数
+  function showPersistentMessage(html) {
+    const messageDiv = document.createElement('div');
+    messageDiv.innerHTML = html;
+    messageDiv.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 0, 0, 0.9);
+      color: white;
+      padding: 2rem;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      z-index: 10001;
+      max-width: 500px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      line-height: 1.6;
+    `;
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '❌ 閉じる';
+    closeBtn.style.cssText = `
+      margin-top: 1rem;
+      padding: 0.8rem 1.5rem;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: 1px solid white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+    `;
+    closeBtn.onclick = () => {
+      if (messageDiv.parentNode) {
+        messageDiv.parentNode.removeChild(messageDiv);
+      }
+    };
+    
+    messageDiv.appendChild(closeBtn);
+    document.body.appendChild(messageDiv);
+    
+    // 30秒後に自動削除
+    setTimeout(() => {
+      if (messageDiv.parentNode) {
+        messageDiv.parentNode.removeChild(messageDiv);
+      }
+    }, 30000);
   }
 
   // シンプルな効果音作成（改良版）
@@ -762,6 +865,54 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     controlPanel.appendChild(initButton);
     
+    // 音声エンジン強制読み込みボタン
+    const forceLoadButton = createButton('⚡ 音声エンジン強制読み込み', '#9c27b0', () => {
+      console.log('⚡ 音声エンジン強制読み込み開始');
+      
+      // 方法1: 複数の空音声を連続再生
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+          try {
+            const dummyUtterance = new SpeechSynthesisUtterance('');
+            dummyUtterance.volume = 0;
+            speechSynthesis.speak(dummyUtterance);
+            speechSynthesis.cancel();
+            console.log(`強制読み込み ${i + 1}/5 完了`);
+          } catch (e) {
+            console.log(`強制読み込み ${i + 1} エラー:`, e.message);
+          }
+        }, i * 500);
+      }
+      
+      // 方法2: 音声一覧の強制取得
+      setTimeout(() => {
+        for (let j = 0; j < 10; j++) {
+          setTimeout(() => {
+            const voices = speechSynthesis.getVoices();
+            console.log(`音声取得試行 ${j + 1}: ${voices.length}個`);
+            if (voices.length > 0) {
+              console.log('🎉 音声エンジンが読み込まれました！');
+              updateAudioStatus();
+              showTemporaryMessage('🎉 音声エンジンの読み込みに成功しました', 3000);
+              return;
+            }
+          }, j * 200);
+        }
+      }, 3000);
+      
+      // 方法3: voiceschanged イベントの再設定
+      if ('onvoiceschanged' in speechSynthesis) {
+        speechSynthesis.onvoiceschanged = () => {
+          const voices = speechSynthesis.getVoices();
+          console.log(`voiceschanged: ${voices.length}個の音声`);
+          updateAudioStatus();
+        };
+      }
+      
+      showTemporaryMessage('⚡ 音声エンジン強制読み込み実行中...', 2000);
+    });
+    controlPanel.appendChild(forceLoadButton);
+    
     // ミュートボタン
     const muteButton = createButton('🔇 音声停止', '#f44336', () => {
       speechSynthesis.cancel();
@@ -1000,6 +1151,16 @@ document.addEventListener('DOMContentLoaded', () => {
         2. <code>amixer set PCM 100%</code> で音量確認<br>
         3. <code>speaker-test -t wav -c 2</code> でハードウェア確認<br>
         4. Chromiumを <code>--autoplay-policy=no-user-gesture-required</code> で起動
+      </div>
+      <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,165,0,0.2); border-radius: 5px; font-size: 0.9rem;">
+        <strong>🍎 macOSでの音声エンジン数0問題の解決策:</strong><br>
+        1. <strong>システム環境設定</strong> → <strong>アクセシビリティ</strong> → <strong>スピーチ</strong> で音声を確認<br>
+        2. <strong>システム環境設定</strong> → <strong>システム音声/音声入出力</strong> で出力デバイス確認<br>
+        3. ターミナルで <code>say "テスト"</code> コマンドを実行して音声確認<br>
+        4. Chromeの場合: <strong>chrome://settings/content/sound</strong> で音声許可確認<br>
+        5. Safari使用時は Chrome または Firefox に切り替え<br>
+        6. <strong>⚡ 音声エンジン強制読み込み</strong> ボタンを複数回クリック<br>
+        7. ページ再読み込み (⌘+R) またはブラウザ再起動
       </div>
     `;
     
