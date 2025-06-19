@@ -2,8 +2,8 @@
 const getServerUrl = () => {
   // 本番環境では現在接続しているホストを使用
   const currentHost = window.location.hostname;
-  const port = 3001; // サーバーのポート番号
-  return `http://${currentHost}:${port}`;
+  const port = 3443; // サーバーのポート番号
+  return `https://${currentHost}:${port}`;
 };
 
 const socket = io(getServerUrl());
