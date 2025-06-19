@@ -44,12 +44,35 @@ document.addEventListener('DOMContentLoaded', () => {
     
     console.log('🔊 音声システム初期化開始...');
     
+    // デバイス検出
+    const isRaspberryPi = navigator.userAgent.includes('armv') || 
+                         navigator.userAgent.includes('Linux') && navigator.userAgent.includes('arm') ||
+                         navigator.platform.includes('Linux arm') ||
+                         window.location.hostname.includes('raspberrypi') ||
+                         navigator.userAgent.includes('X11; Linux armv');
+    
+    const isMacOS = navigator.userAgent.includes('Mac');
+    
+    console.log(`🖥️ デバイス検出: ${isRaspberryPi ? 'Raspberry Pi' : isMacOS ? 'macOS' : 'その他'}`);
+    
     try {
       // AudioContext の初期化
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (!audioContext && AudioContext) {
         audioContext = new AudioContext();
         console.log('✅ AudioContext初期化完了');
+        
+        // ラズベリーパイの場合はAudioContextの状態を詳しくチェック
+        if (isRaspberryPi) {
+          console.log(`🔍 AudioContext状態: ${audioContext.state}`);
+          if (audioContext.state === 'suspended') {
+            audioContext.resume().then(() => {
+              console.log('✅ AudioContext再開完了');
+            }).catch(e => {
+              console.error('❌ AudioContext再開失敗:', e);
+            });
+          }
+        }
       }
       
       // SpeechSynthesis の確認
@@ -58,13 +81,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       
-      // 音声エンジンの強制読み込み（より積極的なアプローチ）
+      // ラズベリーパイ用の特別な音声エンジン読み込み処理
       const loadVoicesWithRetry = (retryCount = 0) => {
         const voices = speechSynthesis.getVoices();
         console.log(`🎵 音声エンジン読み込み試行 ${retryCount + 1}: ${voices.length}個の音声`);
         
         if (voices.length > 0) {
           console.log('✅ 音声エンジン読み込み完了');
+          
+          // 音声の詳細情報をログ出力（ラズベリーパイでは特に重要）
+          voices.forEach((voice, index) => {
+            console.log(`音声 ${index + 1}: ${voice.name} (${voice.lang}) ${voice.default ? '[デフォルト]' : ''} ${voice.localService ? '[ローカル]' : '[リモート]'}`);
+          });
+          
           const japaneseVoices = voices.filter(v => v.lang.includes('ja'));
           const englishVoices = voices.filter(v => v.lang.includes('en'));
           
@@ -80,14 +109,21 @@ document.addEventListener('DOMContentLoaded', () => {
           audioInitialized = true;
           console.log('🎉 音声システム初期化完了！');
           
-          // 初期化完了後にテスト音声を再生
+          // ラズベリーパイの場合は初期化後により長い待機時間
+          const waitTime = isRaspberryPi ? 2000 : 500;
           setTimeout(() => {
             console.log('🔊 初期化テスト音声を再生...');
-            speakCallQueued('音声システムの初期化が完了しました');
-          }, 500);
+            
+            // ラズベリーパイ用の簡単なテスト音声
+            if (isRaspberryPi) {
+              speakCallQueued('音声システム準備完了');
+            } else {
+              speakCallQueued('音声システムの初期化が完了しました');
+            }
+          }, waitTime);
           
-        } else if (retryCount < 15) { // 試行回数を増加
-          // 音声エンジンの読み込みを強制的に試行（複数の方法）
+        } else if (retryCount < (isRaspberryPi ? 20 : 15)) { // ラズベリーパイはより多く試行
+          // 音声エンジンの読み込みを強制的に試行（ラズベリーパイ対応強化）
           console.log('🔄 音声エンジン読み込み中... 再試行します');
           
           // 方法1: 空の音声を再生して音声エンジンを活性化
@@ -113,13 +149,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
           
-          // 方法3: ページリロードを促す（最後の手段）
-          if (retryCount > 10) {
+          // 方法3: ラズベリーパイ特有の音声エンジン強制読み込み
+          if (isRaspberryPi && retryCount > 8) {
+            try {
+              // espeak特有の処理
+              const espeakUtterance = new SpeechSynthesisUtterance('test');
+              espeakUtterance.volume = 0;
+              espeakUtterance.rate = 0.1;
+              espeakUtterance.pitch = 1;
+              speechSynthesis.speak(espeakUtterance);
+              setTimeout(() => speechSynthesis.cancel(), 200);
+              console.log('🔧 ラズベリーパイ特有の音声エンジン活性化実行');
+            } catch (e) {
+              console.log('ラズベリーパイ特有処理失敗:', e.message);
+            }
+          }
+          
+          // 方法4: ページリロードを促す（最後の手段）
+          if (retryCount > 15) {
             console.warn('⚠️ 音声エンジンの読み込みに時間がかかっています');
             showTemporaryMessage('音声エンジン読み込み中... しばらくお待ちください', 3000);
           }
           
-          setTimeout(() => loadVoicesWithRetry(retryCount + 1), retryCount > 10 ? 2000 : 1000);
+          const retryDelay = isRaspberryPi ? (retryCount > 10 ? 3000 : 1500) : (retryCount > 10 ? 2000 : 1000);
+          setTimeout(() => loadVoicesWithRetry(retryCount + 1), retryDelay);
         } else {
           console.error('❌ 音声エンジンの読み込みに失敗しました');
           console.warn('💡 解決策: ページを再読み込みするか、ブラウザを再起動してください');
@@ -127,14 +180,33 @@ document.addEventListener('DOMContentLoaded', () => {
           // フォールバック: 音声なしでも動作するように設定
           audioInitialized = true;
           
+          // デバイス固有の解決策を提示
+          let deviceSpecificSolutions = '';
+          if (isRaspberryPi) {
+            deviceSpecificSolutions = `
+              <br><strong>🥧 Raspberry Pi特有の解決策:</strong><br>
+              1. <code>sudo raspi-config</code> → Advanced Options → Audio<br>
+              2. <code>amixer set PCM 100%</code> で音量確認<br>
+              3. <code>aplay /usr/share/sounds/alsa/Front_Left.wav</code> でハードウェア確認<br>
+              4. Chromiumを <code>--no-sandbox --autoplay-policy=no-user-gesture-required</code> で起動<br>
+              5. <code>sudo apt-get install espeak espeak-data</code> で音声エンジン再インストール
+            `;
+          } else if (isMacOS) {
+            deviceSpecificSolutions = `
+              <br><strong>🍎 macOS特有の解決策:</strong><br>
+              1. システム環境設定 → アクセシビリティ → スピーチ<br>
+              2. ターミナルで <code>say "テスト"</code> を実行
+            `;
+          }
+          
           // ユーザーに手動での解決策を提示
           showPersistentMessage(`
             ❌ 音声エンジンが読み込まれませんでした<br>
-            🔧 解決策:<br>
+            🔧 基本的な解決策:<br>
             1. ページを再読み込み (Ctrl+R/Cmd+R)<br>
             2. ブラウザを再起動<br>
-            3. 他のブラウザを試す (Chrome推奨)<br>
-            4. macOSの場合: システム環境設定 > アクセシビリティ > スピーチ
+            3. 他のブラウザを試す (Chrome推奨)
+            ${deviceSpecificSolutions}
           `);
         }
       };
@@ -154,8 +226,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
       }
       
-      // 追加: システム固有の音声エンジン活性化
-      if (navigator.userAgent.includes('Mac')) {
+      // デバイス固有の音声エンジン活性化
+      if (isMacOS) {
         console.log('🍎 macOS検出: 音声エンジン活性化を試行');
         setTimeout(() => {
           // macOS特有の音声エンジン活性化
@@ -168,6 +240,34 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('macOS音声活性化エラー:', e.message);
           }
         }, 2000);
+      }
+      
+      if (isRaspberryPi) {
+        console.log('🥧 Raspberry Pi検出: 音声エンジン特別活性化を試行');
+        
+        // ラズベリーパイ特有の処理
+        setTimeout(() => {
+          try {
+            // espeak/espeakの強制活性化
+            speechSynthesis.getVoices();
+            
+            // 音声エンジンのキャッシュクリア
+            if (typeof speechSynthesis.cancel === 'function') {
+              speechSynthesis.cancel();
+            }
+            
+            // 複数回の音声エンジン取得試行
+            for (let i = 0; i < 5; i++) {
+              setTimeout(() => {
+                const voices = speechSynthesis.getVoices();
+                console.log(`🥧 ラズベリーパイ音声取得試行 ${i + 1}: ${voices.length}個`);
+              }, i * 500);
+            }
+            
+          } catch (e) {
+            console.log('ラズベリーパイ音声活性化エラー:', e.message);
+          }
+        }, 3000);
       }
       
     } catch (error) {
@@ -391,12 +491,20 @@ document.addEventListener('DOMContentLoaded', () => {
   function playNextSpeech() {
     if (isSpeaking || speechQueue.length === 0) return;
     
+    // デバイス検出
+    const isRaspberryPi = navigator.userAgent.includes('armv') || 
+                         navigator.userAgent.includes('Linux') && navigator.userAgent.includes('arm') ||
+                         navigator.platform.includes('Linux arm') ||
+                         window.location.hostname.includes('raspberrypi') ||
+                         navigator.userAgent.includes('X11; Linux armv');
+    
     // 音声が初期化されていない場合は初期化を試行
     if (!audioInitialized) {
       console.log('音声システムが初期化されていません。初期化を試行します。');
       initializeAudio();
-      // 初期化後に再試行
-      setTimeout(() => playNextSpeech(), 2000);
+      // 初期化後に再試行（ラズベリーパイはより長い待機時間）
+      const waitTime = isRaspberryPi ? 5000 : 2000;
+      setTimeout(() => playNextSpeech(), waitTime);
       return;
     }
     
@@ -410,7 +518,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const voices = speechSynthesis.getVoices();
     if (voices.length === 0) {
       console.log('⚠️ 音声エンジンがまだ読み込まれていません。少し待ってから再試行...');
-      setTimeout(() => playNextSpeech(), 1000);
+      const retryDelay = isRaspberryPi ? 2000 : 1000;
+      setTimeout(() => playNextSpeech(), retryDelay);
       return;
     }
     
@@ -421,34 +530,73 @@ document.addEventListener('DOMContentLoaded', () => {
       // 音声合成をキャンセル（重複防止）
       speechSynthesis.cancel();
       
+      // ラズベリーパイでは長めの待機時間
+      const cancelWaitTime = isRaspberryPi ? 500 : 200;
+      
       // 少し待ってから音声作成（cancel後の安定化）
       setTimeout(() => {
         const msg = new SpeechSynthesisUtterance(text);
-        msg.lang = 'ja-JP';
-        msg.rate = 0.7; // ラズパイでは少し遅めに
-        msg.pitch = 1.0;
-        msg.volume = 1.0;
         
-        // 利用可能な日本語音声を探す
+        // ラズベリーパイ向けの音声設定最適化
+        if (isRaspberryPi) {
+          msg.lang = 'en-US'; // ラズベリーパイでは英語の方が安定
+          msg.rate = 0.6; // ラズベリーパイではより遅く
+          msg.pitch = 1.0;
+          msg.volume = 1.0;
+          console.log('🥧 ラズベリーパイ向け音声設定を適用');
+        } else {
+          msg.lang = 'ja-JP';
+          msg.rate = 0.7;
+          msg.pitch = 1.0;
+          msg.volume = 1.0;
+        }
+        
+        // 利用可能な音声を探す
         const voices = speechSynthesis.getVoices();
         console.log(`🎵 現在の音声数: ${voices.length}`);
         
-        const japaneseVoice = voices.find(voice => 
-          voice.lang === 'ja-JP' || voice.lang === 'ja' || voice.name.includes('Japanese') || voice.name.includes('日本語')
-        );
+        let selectedVoice = null;
         
-        if (japaneseVoice) {
-          msg.voice = japaneseVoice;
-          console.log('✅ 日本語音声を使用:', japaneseVoice.name);
+        if (isRaspberryPi) {
+          // ラズベリーパイでは英語音声を優先
+          const englishVoice = voices.find(voice => 
+            voice.lang.includes('en') || voice.name.toLowerCase().includes('english')
+          );
+          const espeakVoice = voices.find(voice => 
+            voice.name.toLowerCase().includes('espeak') || voice.name.toLowerCase().includes('mbrola')
+          );
+          
+          selectedVoice = espeakVoice || englishVoice || voices[0];
+          
+          if (selectedVoice) {
+            console.log(`🥧 ラズベリーパイ用音声選択: ${selectedVoice.name} (${selectedVoice.lang})`);
+          }
         } else {
-          // 日本語音声がない場合は、デフォルトまたは最初の音声を使用
+          // その他のデバイスでは日本語音声を優先
+          const japaneseVoice = voices.find(voice => 
+            voice.lang === 'ja-JP' || voice.lang === 'ja' || voice.name.includes('Japanese') || voice.name.includes('日本語')
+          );
+          
+          selectedVoice = japaneseVoice;
+          
+          if (selectedVoice) {
+            console.log(`✅ 日本語音声を使用: ${selectedVoice.name}`);
+          }
+        }
+        
+        // 音声が見つからない場合のフォールバック
+        if (!selectedVoice) {
           const defaultVoice = voices.find(v => v.default) || voices[0];
           if (defaultVoice) {
-            msg.voice = defaultVoice;
-            console.log('⚠️ 日本語音声が見つかりません。代替音声を使用:', defaultVoice.name);
+            selectedVoice = defaultVoice;
+            console.log(`⚠️ フォールバック音声を使用: ${defaultVoice.name}`);
           } else {
             console.log('⚠️ 音声が見つかりません。システムデフォルトを使用');
           }
+        }
+        
+        if (selectedVoice) {
+          msg.voice = selectedVoice;
         }
         
         msg.onstart = () => {
@@ -458,41 +606,45 @@ document.addEventListener('DOMContentLoaded', () => {
         msg.onend = () => {
           console.log('✅ 音声再生終了');
           isSpeaking = false;
+          const nextDelay = isRaspberryPi ? 1000 : 500; // ラズベリーパイは長めの間隔
           setTimeout(() => {
             playNextSpeech();
-          }, 500); // 短めの間隔で次の音声へ
+          }, nextDelay);
         };
         
         msg.onerror = (event) => {
           console.error('❌ 音声再生エラー:', event);
           isSpeaking = false;
+          const errorDelay = isRaspberryPi ? 2000 : 1000;
           setTimeout(() => {
             playNextSpeech();
-          }, 1000);
+          }, errorDelay);
         };
         
         // 音声再生
         console.log('🎤 音声合成開始:', text);
         speechSynthesis.speak(msg);
         
-        // タイムアウト処理（ラズパイで音声が止まることがあるため）
+        // タイムアウト処理（ラズベリーパイではより長いタイムアウト）
+        const timeoutDuration = isRaspberryPi ? 25000 : 15000;
         setTimeout(() => {
           if (isSpeaking) {
             console.log('⏰ 音声再生タイムアウト。強制終了します。');
             speechSynthesis.cancel();
             isSpeaking = false;
-            setTimeout(() => playNextSpeech(), 500);
+            setTimeout(() => playNextSpeech(), isRaspberryPi ? 1000 : 500);
           }
-        }, 15000); // 15秒でタイムアウト（長めに設定）
+        }, timeoutDuration);
         
-      }, 200); // cancel後200ms待機
+      }, cancelWaitTime);
       
     } catch (error) {
       console.error('❌ 音声合成エラー:', error);
       isSpeaking = false;
+      const errorRetryDelay = isRaspberryPi ? 2000 : 1000;
       setTimeout(() => {
         playNextSpeech();
-      }, 1000);
+      }, errorRetryDelay);
     }
   }
 
@@ -1147,10 +1299,26 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.1); border-radius: 5px; font-size: 0.9rem;">
         <strong>📝 ラズベリーパイでの音声トラブルシューティング:</strong><br>
+        <strong>🔧 基本的な確認:</strong><br>
         1. <code>sudo raspi-config</code> → Advanced Options → Audio → Force 3.5mm jack/HDMI<br>
         2. <code>amixer set PCM 100%</code> で音量確認<br>
-        3. <code>speaker-test -t wav -c 2</code> でハードウェア確認<br>
-        4. Chromiumを <code>--autoplay-policy=no-user-gesture-required</code> で起動
+        3. <code>aplay /usr/share/sounds/alsa/Front_Left.wav</code> でハードウェア確認<br>
+        4. <code>speaker-test -t wav -c 2</code> でスピーカーテスト<br><br>
+        
+        <strong>🎤 音声エンジンの確認・修復:</strong><br>
+        5. <code>sudo apt-get update && sudo apt-get install espeak espeak-data</code><br>
+        6. <code>espeak "Hello World"</code> でespeak動作確認<br>
+        7. <code>sudo apt-get install festival festvox-kallpc16k</code> でfestival追加<br><br>
+        
+        <strong>🌐 ブラウザ設定:</strong><br>
+        8. Chromiumを以下のオプションで起動:<br>
+        &nbsp;&nbsp;<code>chromium-browser --no-sandbox --autoplay-policy=no-user-gesture-required --enable-features=VaapiVideoDecoder</code><br>
+        9. または: <code>chromium-browser --disable-web-security --user-data-dir=/tmp/chrome_dev_session</code><br><br>
+        
+        <strong>🔊 音声出力の確認:</strong><br>
+        10. <code>cat /proc/asound/cards</code> で音声カード確認<br>
+        11. <code>sudo nano /boot/config.txt</code> で <code>dtparam=audio=on</code> 確認<br>
+        12. <code>sudo reboot</code> 後に再テスト
       </div>
       <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,165,0,0.2); border-radius: 5px; font-size: 0.9rem;">
         <strong>🍎 macOSでの音声エンジン数0問題の解決策:</strong><br>
