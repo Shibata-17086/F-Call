@@ -1569,15 +1569,23 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   };
 
-  // ページ読み込み完了後にコントロールパネルを表示
+  // ページ読み込み完了後にコントロールパネルを表示（display.html専用）
   setTimeout(() => {
-    const audioControl = createAudioControlPanel();
-    showDebugInfo();
+    // 現在のページがdisplay.htmlの場合のみ音声コントロールパネルを表示
+    if (window.location.pathname.includes('display.html') || 
+        document.getElementById('displayNumber') || 
+        document.querySelector('.display-container')) {
+      
+      const audioControl = createAudioControlPanel();
+      showDebugInfo();
+      
+      console.log('F-Call 待合室表示システム初期化完了');
+      console.log('音声トラブルシューティング:');
+      console.log('- 画面をクリックまたはタッチして音声を有効化してください');
+      console.log('- 右下の音声コントロールパネルで操作してください');
+      console.log('- 詳細診断ボタンで音声システムの状態を確認できます');
+    } else {
+      console.log('F-Call display.js: display.html以外のページのため音声コントロールパネルは非表示');
+    }
   }, 2000);
-
-  console.log('F-Call 待合室表示システム初期化完了');
-  console.log('音声トラブルシューティング:');
-  console.log('- 画面をクリックまたはタッチして音声を有効化してください');
-  console.log('- 右下の音声コントロールパネルで操作してください');
-  console.log('- 詳細診断ボタンで音声システムの状態を確認できます');
 });
