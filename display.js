@@ -379,7 +379,17 @@ document.addEventListener('DOMContentLoaded', () => {
           : `${priorityLabel} ${currentCall.number}番の方、${seatName}へどうぞ`;
         
         showNotification(message);
-        speakCallQueued(`受付番号${currentCall.number}番の方、${seatName}へお越しください`);
+        // より自然で実際的な呼び出し音声に変更
+        const seatNumber = currentCall.seat.name.replace(/[^0-9]/g, ''); // 座席番号のみ抽出
+        let callMessage;
+        
+        if (seatNumber) {
+          callMessage = `受付番号${currentCall.number}番の患者様、${seatNumber}番診察台へお越しください`;
+        } else {
+          callMessage = `受付番号${currentCall.number}番の患者様、${currentCall.seat.name}へお越しください`;
+        }
+        
+        speakCallQueued(callMessage);
         
         lastCallNumber = currentCall.number;
         lastCallSeat = seatName;
@@ -606,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!audioInitialized) {
         initializeAudio();
       }
-      speakCallQueued('音声テストです。受付番号1番の方、1番台へお越しください');
+      speakCallQueued('音声テストを開始いたします。受付番号1番の患者様、1番診察台へお越しください');
       playCallSound();
       updateAudioStatus();
     });
@@ -814,9 +824,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const performAudioTest = () => {
       const testSequence = [
-        'テスト1: こんにちは',
-        'テスト2: 音声合成システムのテストです',
-        'テスト3: 受付番号1番の方、お越しください'
+        '音声システムのテストを開始いたします',
+        '受付番号1番の患者様、1番診察台へお越しください',
+        '受付番号2番の患者様、2番診察台へお越しください'
       ];
       
       let testIndex = 0;
