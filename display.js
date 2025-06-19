@@ -503,34 +503,13 @@ document.addEventListener('DOMContentLoaded', () => {
     statusIndicator.className = 'status-indicator closed';
   });
 
-  // キーボードショートカット
+  // 基本的なキーボードショートカット（リロードのみ）
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey) {
       switch (e.key) {
         case 'r':
           e.preventDefault();
           location.reload();
-          break;
-        case 'm':
-          e.preventDefault();
-          window.speechSynthesis.cancel();
-          isSpeaking = false;
-          speechQueue = [];
-          console.log('音声をミュートしました');
-          showTemporaryMessage('🔇 音声をミュートしました', 2000);
-          break;
-        case 't': // 音声テスト用
-          e.preventDefault();
-          if (!audioInitialized) {
-            initializeAudio();
-          }
-          speakCallQueued('音声テストです。受付番号1番の方、1番台へお越しください');
-          playCallSound();
-          showTemporaryMessage('🔊 音声テストを実行中', 3000);
-          break;
-        case 'i': // 音声初期化
-          e.preventDefault();
-          initializeAudio();
           break;
       }
     }
@@ -569,57 +548,137 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 初期化完了時の音声テスト用ボタンを追加
-  const createAudioTestButton = () => {
-    const testButton = document.createElement('button');
-    testButton.textContent = '🔊 音声テスト';
-    testButton.style.cssText = `
+  // 音声コントロールパネルを作成
+  const createAudioControlPanel = () => {
+    const controlPanel = document.createElement('div');
+    controlPanel.id = 'audioControlPanel';
+    controlPanel.style.cssText = `
       position: fixed;
       bottom: 20px;
       right: 20px;
-      padding: 1rem 2rem;
-      background: #4caf50;
+      background: rgba(0, 0, 0, 0.8);
       color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 1.1rem;
-      cursor: pointer;
+      padding: 1rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
       z-index: 1000;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-      transition: opacity 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      min-width: 200px;
+      transition: all 0.3s ease;
     `;
     
-    testButton.onclick = () => {
-      // 音声初期化
+    const createButton = (text, bgColor, onclick) => {
+      const button = document.createElement('button');
+      button.textContent = text;
+      button.style.cssText = `
+        display: block;
+        width: 100%;
+        margin: 0.3rem 0;
+        padding: 0.8rem;
+        background: ${bgColor};
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      `;
+      button.onmouseover = () => button.style.opacity = '0.8';
+      button.onmouseout = () => button.style.opacity = '1';
+      button.onclick = onclick;
+      return button;
+    };
+    
+    // タイトル
+    const title = document.createElement('div');
+    title.textContent = '🔊 音声コントロール';
+    title.style.cssText = 'font-weight: bold; margin-bottom: 0.5rem; text-align: center;';
+    controlPanel.appendChild(title);
+    
+    // 音声状態表示
+    const statusDiv = document.createElement('div');
+    statusDiv.id = 'audioStatus';
+    statusDiv.style.cssText = 'font-size: 0.8rem; margin-bottom: 0.8rem; text-align: center; color: #ccc;';
+    controlPanel.appendChild(statusDiv);
+    
+    // 音声テストボタン
+    const testButton = createButton('🔊 音声テスト', '#4caf50', () => {
       if (!audioInitialized) {
         initializeAudio();
       }
-      
-      // テスト音声再生
       speakCallQueued('音声テストです。受付番号1番の方、1番台へお越しください');
       playCallSound();
-      
-      // ボタンを5秒後に半透明にする
-      setTimeout(() => {
-        if (testButton.parentNode) {
-          testButton.style.opacity = '0.5';
-        }
-      }, 5000);
+      updateAudioStatus();
+    });
+    controlPanel.appendChild(testButton);
+    
+    // 音声初期化ボタン
+    const initButton = createButton('🔄 音声初期化', '#ff9800', () => {
+      audioInitialized = false;
+      audioContext = null;
+      speechSynthesis.cancel();
+      isSpeaking = false;
+      speechQueue = [];
+      initializeAudio();
+      updateAudioStatus();
+      showTemporaryMessage('🔄 音声システムを再初期化しました', 2000);
+    });
+    controlPanel.appendChild(initButton);
+    
+    // ミュートボタン
+    const muteButton = createButton('🔇 音声停止', '#f44336', () => {
+      speechSynthesis.cancel();
+      isSpeaking = false;
+      speechQueue = [];
+      updateAudioStatus();
+      showTemporaryMessage('🔇 音声を停止しました', 2000);
+    });
+    controlPanel.appendChild(muteButton);
+    
+    // 詳細診断ボタン
+    const diagButton = createButton('🔧 詳細診断', '#2196f3', () => {
+      createAdvancedAudioDiagnostics();
+    });
+    controlPanel.appendChild(diagButton);
+    
+    // 最小化ボタン
+    const minimizeButton = createButton('📦 最小化', '#666', () => {
+      if (controlPanel.classList.contains('minimized')) {
+        controlPanel.classList.remove('minimized');
+        controlPanel.style.transform = 'scale(1)';
+        minimizeButton.textContent = '📦 最小化';
+      } else {
+        controlPanel.classList.add('minimized');
+        controlPanel.style.transform = 'scale(0.7)';
+        minimizeButton.textContent = '📦 展開';
+      }
+    });
+    controlPanel.appendChild(minimizeButton);
+    
+    // 音声状態を更新する関数
+    const updateAudioStatus = () => {
+      const voices = speechSynthesis ? speechSynthesis.getVoices() : [];
+      const hasJapanese = voices.some(v => v.lang.includes('ja'));
+      const statusText = `
+        初期化: ${audioInitialized ? '✅' : '❌'} | 
+        音声: ${voices.length}個 | 
+        日本語: ${hasJapanese ? '✅' : '❌'}
+      `;
+      statusDiv.textContent = statusText;
     };
     
-    document.body.appendChild(testButton);
+    document.body.appendChild(controlPanel);
     
-    // 10秒後にボタンを自動で薄くする
+    // 定期的に状態を更新
+    setInterval(updateAudioStatus, 3000);
+    updateAudioStatus();
+    
+    // 10秒後に半透明にする
     setTimeout(() => {
-      testButton.style.opacity = '0.3';
+      controlPanel.style.opacity = '0.7';
     }, 10000);
     
-    // 30秒後にボタンを非表示にする
-    setTimeout(() => {
-      if (testButton.parentNode) {
-        testButton.style.display = 'none';
-      }
-    }, 30000);
+    return { updateAudioStatus };
   };
 
   // デバッグ情報を表示する関数
@@ -676,16 +735,175 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 60000);
   };
 
-  // ページ読み込み完了後にテストボタンとデバッグ情報を表示
+  // 高度な音声診断機能
+  const createAdvancedAudioDiagnostics = () => {
+    const diagnosticsDiv = document.createElement('div');
+    diagnosticsDiv.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.95);
+      color: white;
+      padding: 2rem;
+      border-radius: 12px;
+      font-size: 1rem;
+      z-index: 10000;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      font-family: monospace;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    `;
+    
+    const runDiagnostics = () => {
+      const results = [];
+      
+      // 基本チェック
+      results.push(`🌐 ブラウザ: ${navigator.userAgent.includes('Chrome') ? 'Chrome/Chromium' : 'その他'}`);
+      results.push(`🔊 SpeechSynthesis: ${window.speechSynthesis ? '✅ 対応' : '❌ 非対応'}`);
+      results.push(`🔉 AudioContext: ${window.AudioContext || window.webkitAudioContext ? '✅ 対応' : '❌ 非対応'}`);
+      
+      // 音声エンジンチェック
+      const voices = speechSynthesis.getVoices();
+      results.push(`🎵 音声エンジン数: ${voices.length}`);
+      
+      if (voices.length > 0) {
+        const japaneseVoices = voices.filter(v => v.lang.includes('ja'));
+        const englishVoices = voices.filter(v => v.lang.includes('en'));
+        
+        results.push(`🇯🇵 日本語音声: ${japaneseVoices.length}個`);
+        results.push(`🇺🇸 英語音声: ${englishVoices.length}個`);
+        
+        if (japaneseVoices.length > 0) {
+          results.push(`✅ 推奨音声: ${japaneseVoices[0].name}`);
+        } else if (englishVoices.length > 0) {
+          results.push(`⚠️ 代替音声: ${englishVoices[0].name} (英語)`);
+        }
+        
+        // 全音声をリスト表示
+        results.push(`\n📋 利用可能な音声一覧:`);
+        voices.slice(0, 10).forEach((voice, index) => {
+          const isDefault = voice.default ? ' (デフォルト)' : '';
+          const isLocal = voice.localService ? ' (ローカル)' : ' (リモート)';
+          results.push(`${index + 1}. ${voice.name} (${voice.lang})${isDefault}${isLocal}`);
+        });
+        if (voices.length > 10) {
+          results.push(`... 他${voices.length - 10}個`);
+        }
+      } else {
+        results.push(`❌ 音声エンジンが読み込まれていません`);
+        results.push(`💡 ヒント: ページを再読み込みしてみてください`);
+      }
+      
+      // システム情報
+      results.push(`\n🖥️ システム情報:`);
+      results.push(`OS: ${navigator.platform}`);
+      results.push(`言語: ${navigator.language}`);
+      results.push(`オンライン: ${navigator.onLine ? '✅' : '❌'}`);
+      
+      // 音声初期化状態
+      results.push(`\n🔧 音声システム状態:`);
+      results.push(`初期化済み: ${audioInitialized ? '✅' : '❌'}`);
+      results.push(`AudioContext: ${audioContext ? audioContext.state : '未作成'}`);
+      results.push(`再生中: ${isSpeaking ? '✅' : '❌'}`);
+      results.push(`キュー: ${speechQueue.length}件`);
+      
+      return results.join('\n');
+    };
+    
+    const performAudioTest = () => {
+      const testSequence = [
+        'テスト1: こんにちは',
+        'テスト2: 音声合成システムのテストです',
+        'テスト3: 受付番号1番の方、お越しください'
+      ];
+      
+      let testIndex = 0;
+      const runNextTest = () => {
+        if (testIndex < testSequence.length) {
+          const text = testSequence[testIndex];
+          console.log(`🔊 音声テスト実行: ${text}`);
+          speakCallQueued(text);
+          testIndex++;
+          setTimeout(runNextTest, 3000);
+        }
+      };
+      
+      if (!audioInitialized) {
+        initializeAudio();
+        setTimeout(runNextTest, 1000);
+      } else {
+        runNextTest();
+      }
+    };
+    
+    diagnosticsDiv.innerHTML = `
+      <div style="text-align: center; margin-bottom: 1rem;">
+        <h2>🔧 F-Call 音声診断システム</h2>
+      </div>
+      <pre style="white-space: pre-wrap; line-height: 1.4;">${runDiagnostics()}</pre>
+      <div style="text-align: center; margin-top: 1.5rem;">
+        <button id="testAudioBtn" style="margin: 0.5rem; padding: 0.8rem 1.5rem; font-size: 1rem; background: #4caf50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+          🔊 音声テスト実行
+        </button>
+        <button id="forceInitBtn" style="margin: 0.5rem; padding: 0.8rem 1.5rem; font-size: 1rem; background: #ff9800; color: white; border: none; border-radius: 5px; cursor: pointer;">
+          🔄 強制初期化
+        </button>
+        <button id="refreshVoicesBtn" style="margin: 0.5rem; padding: 0.8rem 1.5rem; font-size: 1rem; background: #2196f3; color: white; border: none; border-radius: 5px; cursor: pointer;">
+          🎵 音声再読み込み
+        </button>
+        <button id="closeDiagBtn" style="margin: 0.5rem; padding: 0.8rem 1.5rem; font-size: 1rem; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer;">
+          ❌ 閉じる
+        </button>
+      </div>
+      <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.1); border-radius: 5px; font-size: 0.9rem;">
+        <strong>📝 ラズベリーパイでの音声トラブルシューティング:</strong><br>
+        1. <code>sudo raspi-config</code> → Advanced Options → Audio → Force 3.5mm jack/HDMI<br>
+        2. <code>amixer set PCM 100%</code> で音量確認<br>
+        3. <code>speaker-test -t wav -c 2</code> でハードウェア確認<br>
+        4. Chromiumを <code>--autoplay-policy=no-user-gesture-required</code> で起動
+      </div>
+    `;
+    
+    // イベントリスナー
+    document.body.appendChild(diagnosticsDiv);
+    
+    document.getElementById('testAudioBtn').onclick = performAudioTest;
+    
+    document.getElementById('forceInitBtn').onclick = () => {
+      audioInitialized = false;
+      audioContext = null;
+      speechSynthesis.cancel();
+      isSpeaking = false;
+      speechQueue = [];
+      initializeAudio();
+      setTimeout(() => {
+        diagnosticsDiv.querySelector('pre').textContent = runDiagnostics();
+      }, 1000);
+    };
+    
+    document.getElementById('refreshVoicesBtn').onclick = () => {
+      speechSynthesis.getVoices(); // 音声リストを強制更新
+      setTimeout(() => {
+        diagnosticsDiv.querySelector('pre').textContent = runDiagnostics();
+      }, 500);
+    };
+    
+    document.getElementById('closeDiagBtn').onclick = () => {
+      diagnosticsDiv.remove();
+    };
+  };
+
+  // ページ読み込み完了後にコントロールパネルを表示
   setTimeout(() => {
-    createAudioTestButton();
+    const audioControl = createAudioControlPanel();
     showDebugInfo();
   }, 2000);
 
   console.log('F-Call 待合室表示システム初期化完了');
   console.log('音声トラブルシューティング:');
   console.log('- 画面をクリックまたはタッチして音声を有効化してください');
-  console.log('- Ctrl+T で音声テストができます');
-  console.log('- Ctrl+M で音声をミュートできます');
-  console.log('- Ctrl+I で音声システムを再初期化できます');
+  console.log('- 右下の音声コントロールパネルで操作してください');
+  console.log('- 詳細診断ボタンで音声システムの状態を確認できます');
 });
