@@ -24,12 +24,13 @@
         "current info"
         "current history";
       grid-template-rows: auto 1fr 1fr;
-      gap: 2rem;
+      gap: 3rem;
       width: 100%; 
-      max-width: 1800px; 
-      margin: 2rem auto;
-      padding: 2rem;
-      height: calc(100vh - 8rem);
+      max-width: none; 
+      margin: 0;
+      padding: 3rem;
+      height: 100vh;
+      box-sizing: border-box;
     }
     
     .header-section {
@@ -39,7 +40,7 @@
       align-items: center;
       background: #ffffff;
       border-radius: 0.5rem;
-      padding: 1rem 2rem;
+      padding: 2rem 3rem;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
       border: 1px solid rgba(0, 0, 0, 0.05);
       margin-bottom: 1rem;
@@ -52,14 +53,14 @@
     }
     
     .hospital-name {
-      font-size: 1.8rem;
+      font-size: 3rem;
       font-weight: 500;
       color: #2c80b9;
       margin: 0;
     }
     
     .hospital-subtitle {
-      font-size: 1rem;
+      font-size: 1.8rem;
       color: #666;
       margin: 0.2rem 0 0 0;
     }
@@ -68,26 +69,26 @@
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      gap: 0.3rem;
+      gap: 0.5rem;
     }
     
     .digital-clock {
-      font-size: 1.8rem;
+      font-size: 3.5rem;
       font-weight: 600;
       color: #333;
       font-family: 'Courier New', monospace;
     }
     
     .date-display {
-      font-size: 1rem;
+      font-size: 1.8rem;
       color: #666;
     }
     
     .business-hours {
-      font-size: 0.9rem;
+      font-size: 1.6rem;
       color: #888;
       background: #f0f8ff;
-      padding: 0.2rem 0.6rem;
+      padding: 0.5rem 1rem;
       border-radius: 0.5rem;
       border: 1px solid #ddd;
     }
@@ -96,7 +97,7 @@
       grid-area: current;
       background: #ffffff;
       border-radius: 0.5rem;
-      padding: 3rem 2rem;
+      padding: 4rem 3rem;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -106,21 +107,21 @@
     }
     
     .display-title { 
-      font-size: 2.2rem; 
-      margin-bottom: 2rem; 
+      font-size: 4rem; 
+      margin-bottom: 3rem; 
       color: #2c80b9; 
       text-align: center;
       border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-      padding-bottom: 0.5rem;
+      padding-bottom: 1rem;
       width: 100%;
       font-weight: 400;
     }
     
     .display-number { 
-      font-size: 14rem; 
+      font-size: 20rem; 
       font-weight: bold; 
       color: #2c80b9; 
-      margin: 1rem 0; 
+      margin: 2rem 0; 
       line-height: 1; 
       text-align: center;
       transition: all 0.3s ease;
@@ -142,11 +143,11 @@
     }
     
     .display-seat {
-      font-size: 3rem;
+      font-size: 5rem;
       font-weight: 500;
       color: #ffffff;
-      margin-top: 2rem;
-      padding: 1rem 2rem;
+      margin-top: 3rem;
+      padding: 2rem 3rem;
       background: #4ca3d8;
       border-radius: 0.5rem;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -172,65 +173,65 @@
       grid-area: info;
       background: #ffffff;
       border-radius: 0.5rem;
-      padding: 2rem;
+      padding: 3rem;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
       border: 1px solid rgba(0, 0, 0, 0.05);
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 2rem;
     }
     
     .info-title {
-      font-size: 1.6rem;
+      font-size: 2.8rem;
       font-weight: 400;
       color: #2c80b9;
       text-align: center;
       margin: 0;
       border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-      padding-bottom: 0.5rem;
+      padding-bottom: 1rem;
     }
     
     .info-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 1rem;
+      gap: 2rem;
     }
     
     .info-item {
       background: #f8faff;
-      padding: 1rem;
+      padding: 2rem;
       border-radius: 0.5rem;
       text-align: center;
       border: 1px solid rgba(0, 0, 0, 0.05);
     }
     
     .info-item-title {
-      font-size: 0.9rem;
+      font-size: 1.6rem;
       color: #666;
-      margin: 0 0 0.5rem 0;
+      margin: 0 0 1rem 0;
     }
     
     .info-item-value {
-      font-size: 1.8rem;
+      font-size: 3.5rem;
       font-weight: 600;
       color: #2c80b9;
       margin: 0;
     }
     
     .info-item-unit {
-      font-size: 0.9rem;
+      font-size: 1.8rem;
       color: #888;
-      margin-left: 0.2rem;
+      margin-left: 0.3rem;
     }
     
     .status-indicator {
       grid-column: 1 / -1;
       background: #28a745;
       color: white;
-      padding: 0.8rem;
+      padding: 1.5rem;
       border-radius: 0.5rem;
       text-align: center;
-      font-size: 1rem;
+      font-size: 2rem;
       font-weight: 500;
     }
     
@@ -247,7 +248,7 @@
       grid-area: history;
       background: #ffffff;
       border-radius: 0.5rem;
-      padding: 2rem;
+      padding: 3rem;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
       display: flex;
       flex-direction: column;
@@ -255,30 +256,30 @@
     }
     
     .history-title { 
-      font-size: 1.6rem; 
-      margin-bottom: 1.5rem; 
+      font-size: 2.8rem; 
+      margin-bottom: 2rem; 
       color: #2c80b9; 
       text-align: center;
       border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-      padding-bottom: 0.5rem;
+      padding-bottom: 1rem;
       font-weight: 400;
     }
     
     .history-list { 
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
+      gap: 1.5rem;
       justify-content: center;
       overflow-y: auto;
       flex-grow: 1;
-      padding: 0.5rem;
+      padding: 1rem;
     }
     
     .history-item { 
       color: #333; 
       background: #f5f9fc; 
       border-radius: 0.5rem; 
-      padding: 1.2rem 1rem; 
+      padding: 2rem 1.5rem; 
       text-align: center;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
       border: 1px solid rgba(0, 0, 0, 0.05);
@@ -306,22 +307,22 @@
     }
     
     .history-number {
-      font-size: 2rem;
+      font-size: 3.5rem;
       font-weight: bold;
       color: #2c80b9;
       margin: 0;
     }
     
     .history-seat {
-      font-size: 1rem;
+      font-size: 1.8rem;
       color: #666;
-      margin: 0.3rem 0 0 0;
+      margin: 0.5rem 0 0 0;
     }
     
     .history-time {
-      font-size: 0.8rem;
+      font-size: 1.4rem;
       color: #888;
-      margin: 0.2rem 0 0 0;
+      margin: 0.3rem 0 0 0;
     }
     
     .notification {
@@ -331,9 +332,9 @@
       right: 0;
       background: #4ca3d8;
       color: #fff;
-      padding: 1.5rem;
+      padding: 3rem;
       text-align: center;
-      font-size: 2rem;
+      font-size: 4rem;
       font-weight: 500;
       z-index: 1000;
       display: none;
@@ -352,110 +353,95 @@
     }
     
     .no-history-message {
-      font-size: 1.2rem;
+      font-size: 2rem;
       color: #888;
       text-align: center;
-      padding: 2rem;
+      padding: 3rem;
       grid-column: 1 / -1;
       align-self: center;
       justify-self: center;
     }
     
     /* Priority indicators */
-    .priority-urgent { border-left: 3px solid #dc3545; }
-    .priority-appointment { border-left: 3px solid #ffc107; }
-    .priority-normal { border-left: 3px solid #28a745; }
+    .priority-urgent { border-left: 5px solid #dc3545; }
+    .priority-appointment { border-left: 5px solid #ffc107; }
+    .priority-normal { border-left: 5px solid #28a745; }
     
-    /* レスポンシブデザイン */
-    @media (max-width: 1400px) {
-      .display-number { font-size: 12rem; }
-      .display-seat { font-size: 2.8rem; }
-      .history-list { grid-template-columns: repeat(1, 1fr); }
-    }
-    
-    @media (max-width: 1000px) {
+    /* フルHD対応 - さらなる拡大 */
+    @media (min-width: 1920px) and (min-height: 1080px) {
       .display-container {
-        grid-template-columns: 1fr;
-        grid-template-areas: 
-          "header"
-          "current"
-          "info"
-          "history";
-        height: auto;
+        gap: 4rem;
+        padding: 4rem;
       }
-      .display-number { font-size: 10rem; }
-      .display-seat { font-size: 2.5rem; }
-      .info-grid { grid-template-columns: repeat(4, 1fr); }
-    }
-    
-    @media (max-width: 768px) {
-      .display-title, .history-title, .info-title { font-size: 1.5rem; }
-      .display-number { font-size: 8rem; }
-      .display-seat { font-size: 2rem; }
-      .hospital-name { font-size: 1.5rem; }
-      .digital-clock { font-size: 1.5rem; }
-      .info-grid { grid-template-columns: repeat(2, 1fr); }
-      .history-list { grid-template-columns: repeat(2, 1fr); }
+      
+      .hospital-name { font-size: 4rem; }
+      .hospital-subtitle { font-size: 2.2rem; }
+      .digital-clock { font-size: 4.5rem; }
+      .date-display { font-size: 2.2rem; }
+      .business-hours { font-size: 2rem; }
+      
+      .display-title { font-size: 5rem; margin-bottom: 4rem; }
+      .display-number { font-size: 24rem; margin: 3rem 0; }
+      .display-seat { font-size: 6rem; padding: 3rem 4rem; }
+      
+      .info-title, .history-title { font-size: 3.5rem; }
+      .info-item-title { font-size: 2rem; }
+      .info-item-value { font-size: 4.5rem; }
+      .info-item-unit { font-size: 2.2rem; }
+      .status-indicator { font-size: 2.5rem; padding: 2rem; }
+      
+      .history-number { font-size: 4rem; }
+      .history-seat { font-size: 2.2rem; }
+      .history-time { font-size: 1.6rem; }
+      
+      .notification { font-size: 5rem; padding: 4rem; }
+      .no-history-message { font-size: 2.5rem; }
     }
   </style>
 </head>
 <body>
-  <!-- 通知表示 -->
-  <div class="notification" id="notification" style="display: none;">
-    📢 お呼びしました
-  </div>
+  <div class="notification" id="notification">お呼びしました</div>
   
-  <!-- メインコンテナ -->
   <div class="display-container">
-    
-    <!-- ヘッダー部分 -->
-    <div class="display-header">
-      <div class="display-title">F-Call 待合室案内システム</div>
-      <div class="display-status" id="statusIndicator">🟢 営業中</div>
-    </div>
-    
-    <!-- メイン表示エリア -->
-    <div class="display-main">
-      <div class="display-content">
-        <div id="displayNumber" class="display-number">---</div>
-        <div id="displaySeat" class="display-seat">お待ちください</div>
+    <div class="header-section">
+      <div class="hospital-info">
+        <div class="hospital-name">F-Call</div>
+        <div class="hospital-subtitle">待合室案内システム</div>
       </div>
-    </div>
-    
-    <!-- フッター情報エリア -->
-    <div class="display-footer">
-      
-      <!-- 時計表示 -->
-      <div class="display-clock">
-        <div class="current-time" id="digitalClock">00:00:00</div>
-        <div class="current-date" id="dateDisplay"></div>
+      <div class="header-time">
+        <div class="digital-clock" id="digitalClock">00:00:00</div>
+        <div class="date-display" id="dateDisplay"></div>
         <div class="business-hours" id="businessHours">営業時間: 9:00-18:00</div>
       </div>
-      
-      <!-- 履歴表示 -->
-      <div class="display-history">
-        <div class="history-title">最近お呼びした番号</div>
-        <div id="historyList" class="history-list">
-          <div class="no-history-message">呼び出し履歴はありません</div>
-        </div>
-      </div>
-      
-      <!-- 待機情報 -->
-      <div class="display-waiting">
-        <div class="waiting-info">
-          <div class="info-item">
-            <div class="info-item-label">待ち人数</div>
-            <div class="info-item-value" id="waitingCount">0<span class="info-item-unit">人</span></div>
-          </div>
-          <div class="info-item">
-            <div class="info-item-label">予想待ち時間</div>
-            <div class="info-item-value" id="estimatedWait">0<span class="info-item-unit">分</span></div>
-          </div>
-        </div>
-      </div>
-      
     </div>
     
+    <div class="current-number-section">
+      <div class="display-title">只今お呼びしている番号</div>
+      <div id="displayNumber" class="display-number">---</div>
+      <div id="displaySeat" class="display-seat">お待ちください</div>
+    </div>
+    
+    <div class="info-section">
+      <h2 class="info-title">待合状況</h2>
+      <div class="info-grid">
+        <div class="info-item">
+          <p class="info-item-title">待ち人数</p>
+          <p class="info-item-value" id="waitingCount">0<span class="info-item-unit">人</span></p>
+        </div>
+        <div class="info-item">
+          <p class="info-item-title">予想待ち時間</p>
+          <p class="info-item-value" id="estimatedWait">0<span class="info-item-unit">分</span></p>
+        </div>
+        <div class="status-indicator" id="statusIndicator">
+          🟢 営業中
+        </div>
+      </div>
+    </div>
+    
+    <div class="history-section">
+      <h2 class="history-title">最近お呼びした番号</h2>
+      <div id="historyList" class="history-list"></div>
+    </div>
   </div>
   
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
