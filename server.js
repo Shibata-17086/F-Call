@@ -8,22 +8,106 @@ const https = require('https');
 
 const app = express();
 
-const privateKey = fs.readFileSync('server.key', 'utf8');
-const certificate = fs.readFileSync('server.crt', 'utf8');
-const credentials = { key: privateKey, cert: certificate };
-const httpsServer = https.createServer(credentials, app);
+// ===== エラーハンドリングを追加 =====
 
+// 未処理の例外をキャッチ
+process.on('uncaughtException', (error) => {
+  console.error('❌ 未処理の例外が発生しました:', error.message);
+  console.error('スタックトレース:', error.stack);
+  console.log('サーバーを安全に終了します...');
+  process.exit(1);
+});
+
+// 未処理のPromise拒否をキャッチ
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ 未処理のPromise拒否:', reason);
+  console.error('Promise:', promise);
+  console.log('サーバーを安全に終了します...');
+  process.exit(1);
+});
+
+// 証明書ファイルの存在チェックと読み込み
+let privateKey, certificate, credentials, httpsServer;
+
+try {
+  // 証明書ファイルの存在確認
+  if (!fs.existsSync('server.key')) {
+    throw new Error('server.key ファイルが見つかりません');
+  }
+  if (!fs.existsSync('server.crt')) {
+    throw new Error('server.crt ファイルが見つかりません');
+  }
+
+  console.log('🔑 SSL証明書ファイルを読み込み中...');
+  privateKey = fs.readFileSync('server.key', 'utf8');
+  certificate = fs.readFileSync('server.crt', 'utf8');
+  credentials = { key: privateKey, cert: certificate };
+  httpsServer = https.createServer(credentials, app);
+  
+  console.log('✅ SSL証明書を正常に読み込みました');
+
+} catch (error) {
+  console.error('❌ SSL証明書の読み込みエラー:', error.message);
+  console.log('\n📋 証明書を生成するには以下のコマンドを実行してください：');
+  console.log('openssl req -x509 -nodes -days 36500 -newkey rsa:2048 \\');
+  console.log('  -keyout server.key -out server.crt \\');
+  console.log('  -subj "/CN=F-call" \\');
+  console.log('  -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:192.168.11.4"');
+  process.exit(1);
+}
+
+// Socket.ioサーバーの作成（エラーハンドリング付き）
 const io = new Server(httpsServer, {
   cors: {
     origin: "*", // すべてのオリジンからのアクセスを許可
     methods: ["GET", "POST"],
     credentials: true
-  }
+  },
+  // 接続タイムアウトを設定
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  // 最大接続数制限
+  maxHttpBufferSize: 1e6,
+  // 接続の詳細ログ
+  transports: ['websocket', 'polling']
 });
+
+// Socket.ioのエラーハンドリング
+io.engine.on("connection_error", (err) => {
+  console.error('🔌 Socket.io接続エラー:', {
+    message: err.message,
+    code: err.code,
+    context: err.context
+  });
+});
+
+// Socket.io接続イベント
+io.on('connect_error', (error) => {
+  console.error('🔌 Socket.io接続エラー (クライアント側):', error);
+});
+
+console.log('🔌 Socket.ioサーバーを初期化しました');
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
+
+// Express エラーハンドリングミドルウェア
+app.use((error, req, res, next) => {
+  console.error('🌐 Express エラー:', {
+    message: error.message,
+    stack: error.stack,
+    url: req.url,
+    method: req.method,
+    ip: req.ip
+  });
+  res.status(500).json({ 
+    error: 'サーバー内部エラーが発生しました',
+    message: process.env.NODE_ENV === 'development' ? error.message : 'Internal Server Error'
+  });
+});
+
+console.log('🌐 Expressミドルウェアを設定しました');
 
 let tickets = []; // [{number, time, priority, estimatedWaitTime}]
 let issuedHistory = []; // [{number, time, date}]
@@ -177,84 +261,115 @@ function sendUpdate() {
 }
 
 io.on('connection', (socket) => {
-  checkDateReset(); // 接続時に日付チェック
+  console.log(`👤 新しいクライアントが接続しました: ${socket.id} (IP: ${socket.handshake.address})`);
   
-  // 初期データ送信
-  socket.emit('init', {
-    tickets,
-    issuedHistory,
-    calledHistory,
-    currentCall,
-    waitMinutesPerPerson,
-    seats,
-    statistics,
-    businessHours,
-    currentDate,
-    isBusinessHours: isBusinessHours()
+  try {
+    checkDateReset(); // 接続時に日付チェック
+    
+    // 初期データ送信
+    socket.emit('init', {
+      tickets,
+      issuedHistory,
+      calledHistory,
+      currentCall,
+      waitMinutesPerPerson,
+      seats,
+      statistics,
+      businessHours,
+      currentDate,
+      isBusinessHours: isBusinessHours()
+    });
+    
+    console.log(`📤 初期データを送信しました: ${socket.id}`);
+  } catch (error) {
+    console.error(`❌ 初期データ送信エラー (${socket.id}):`, error);
+    socket.emit('error', { message: 'サーバー初期化エラーが発生しました' });
+  }
+
+  // ソケット切断時の処理
+  socket.on('disconnect', (reason) => {
+    console.log(`👋 クライアントが切断されました: ${socket.id} (理由: ${reason})`);
+  });
+
+  // ソケットエラーハンドリング
+  socket.on('error', (error) => {
+    console.error(`🔌 ソケットエラー (${socket.id}):`, error);
   });
 
   // 発券リクエスト
   socket.on('issueTicket', (data = {}) => {
-    if (!isBusinessHours()) {
-      socket.emit('error', { message: '現在は営業時間外です' });
-      return;
+    try {
+      console.log(`🎫 発券リクエスト受信 (${socket.id}):`, data);
+      
+      if (!isBusinessHours()) {
+        socket.emit('error', { message: '現在は営業時間外です' });
+        return;
+      }
+      
+      dailyTicketCount++;
+      const time = formatTime(new Date());
+      const priority = data.priority || 'normal'; // normal, urgent, appointment
+      const position = tickets.length;
+      const estimatedWaitTime = calculateWaitTime(position + 1);
+      
+      const ticket = { 
+        number: dailyTicketCount, 
+        time,
+        date: currentDate,
+        priority,
+        estimatedWaitTime,
+        issueTime: new Date()
+      };
+      
+      // 優先度に応じてソート
+      if (priority === 'urgent') {
+        // 緊急患者は最前列に
+        tickets.unshift(ticket);
+      } else if (priority === 'appointment') {
+        // 予約患者は緊急患者の後、一般患者の前に
+        const urgentCount = tickets.filter(t => t.priority === 'urgent').length;
+        tickets.splice(urgentCount, 0, ticket);
+      } else {
+        // 一般患者は最後尾に
+        tickets.push(ticket);
+      }
+      
+      issuedHistory.unshift(ticket);
+      
+      // 発券成功をクライアントに通知
+      socket.emit('ticketIssued', { 
+        number: ticket.number, 
+        estimatedWaitTime: ticket.estimatedWaitTime,
+        priority: ticket.priority 
+      });
+      
+      sendUpdate();
+      console.log(`✅ 発券完了: ${ticket.number}番 (${priority})`);
+      
+    } catch (error) {
+      console.error(`❌ 発券エラー (${socket.id}):`, error);
+      socket.emit('error', { message: '発券処理中にエラーが発生しました' });
     }
-    
-    dailyTicketCount++;
-    const time = formatTime(new Date());
-    const priority = data.priority || 'normal'; // normal, urgent, appointment
-    const position = tickets.length;
-    const estimatedWaitTime = calculateWaitTime(position + 1);
-    
-    const ticket = { 
-      number: dailyTicketCount, 
-      time,
-      date: currentDate,
-      priority,
-      estimatedWaitTime,
-      issueTime: new Date()
-    };
-    
-    // 優先度に応じてソート
-    if (priority === 'urgent') {
-      // 緊急患者は最前列に
-      tickets.unshift(ticket);
-    } else if (priority === 'appointment') {
-      // 予約患者は緊急患者の後、一般患者の前に
-      const urgentCount = tickets.filter(t => t.priority === 'urgent').length;
-      tickets.splice(urgentCount, 0, ticket);
-    } else {
-      // 一般患者は最後尾に
-      tickets.push(ticket);
-    }
-    
-    issuedHistory.unshift(ticket);
-    
-    // 発券成功をクライアントに通知
-    socket.emit('ticketIssued', { 
-      number: ticket.number, 
-      estimatedWaitTime: ticket.estimatedWaitTime,
-      priority: ticket.priority 
-    });
-    
-    sendUpdate();
   });
 
   // 呼び出しリクエスト
   socket.on('callNumber', ({ number, seatId }) => {
-    console.log(`[DEBUG] 呼び出しリクエスト開始: 番号=${number}, 座席ID=${seatId}`);
-    
-    const idx = tickets.findIndex(t => t.number === number);
-    const seat = seats.find(s => s.id === seatId);
-    
-    if (idx === -1) {
-      console.log(`[ERROR] チケットが見つかりません: 番号=${number}`);
-      return;
-    }
-    if (!seat) {
-      console.log(`[ERROR] 座席が見つかりません: 座席ID=${seatId}`);
-      return;
-    }
+    try {
+      console.log(`📢 呼び出しリクエスト開始 (${socket.id}): 番号=${number}, 座席ID=${seatId}`);
+      
+      const idx = tickets.findIndex(t => t.number === number);
+      const seat = seats.find(s => s.id === seatId);
+      
+      if (idx === -1) {
+        console.log(`❌ チケットが見つかりません: 番号=${number}`);
+        socket.emit('error', { message: `番号${number}のチケットが見つかりません` });
+        return;
+      }
+      if (!seat) {
+        console.log(`❌ 座席が見つかりません: 座席ID=${seatId}`);
+        socket.emit('error', { message: '指定された座席が見つかりません' });
+        return;
+      }
     
     const ticket = tickets[idx];
     const time = formatTime(new Date());
@@ -309,8 +424,13 @@ io.on('connection', (socket) => {
     console.log(`[SUCCESS] 呼び出し完了: 番号${number} → ${seat.name} (待ち時間: ${actualWaitTime}分)`);
     console.log(`[DEBUG] 更新データ送信前 - 履歴件数: ${calledHistory.length}, 現在の呼び出し: ${currentCall ? currentCall.number : 'なし'}`);
     
-    sendUpdate();
-    console.log(`[DEBUG] 全クライアントへの更新データ送信完了`);
+      sendUpdate();
+      console.log(`✅ 呼び出し完了: 番号${number} → ${seat.name} (待ち時間: ${actualWaitTime}分)`);
+      
+    } catch (error) {
+      console.error(`❌ 呼び出しエラー (${socket.id}):`, error);
+      socket.emit('error', { message: '呼び出し処理中にエラーが発生しました' });
+    }
   });
 
   // 呼び出しキャンセル
@@ -503,10 +623,29 @@ httpServer.listen(3001, () => {
   console.log('HTTPサーバー(リダイレクト用)がポート3001で起動');
 });
 
+// HTTPSサーバーのエラーハンドリング
+httpsServer.on('error', (error) => {
+  console.error('❌ HTTPSサーバーエラー:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.log('🔴 ポート3443は既に使用されています');
+    console.log('📋 実行中のプロセスを確認: sudo lsof -i :3443');
+    console.log('📋 プロセスを停止: sudo kill -9 [プロセスID]');
+  }
+  process.exit(1);
+});
+
+// HTTPサーバーのエラーハンドリング
+httpServer.on('error', (error) => {
+  console.error('❌ HTTPサーバーエラー:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.log('🔴 ポート3001は既に使用されています');
+  }
+});
+
 // サーバーの起動
 httpsServer.listen(3443, () => {
   console.log('==================================================');
-  console.log('   F-Call サーバー(HTTPS)が起動しました (ポート: 3443)');
+  console.log('   🚀 F-Call サーバー(HTTPS)が起動しました (ポート: 3443)');
   console.log('==================================================');
   console.log('ローカル: https://localhost:3443');
   
@@ -543,3 +682,49 @@ httpsServer.listen(3443, () => {
   console.log('Ctrl+Cでサーバーを停止できます');
   console.log('==================================================\n');
 });
+
+// グレースフルシャットダウンの実装
+const gracefulShutdown = (signal) => {
+  console.log(`\n🛑 ${signal} シグナルを受信しました。サーバーを安全に停止します...`);
+  
+  // 新しい接続を受け付けない
+  httpsServer.close((err) => {
+    if (err) {
+      console.error('❌ HTTPSサーバー停止エラー:', err);
+    } else {
+      console.log('✅ HTTPSサーバーを停止しました');
+    }
+  });
+  
+  httpServer.close((err) => {
+    if (err) {
+      console.error('❌ HTTPサーバー停止エラー:', err);
+    } else {
+      console.log('✅ HTTPサーバーを停止しました');
+    }
+  });
+  
+  // Socket.ioの接続を閉じる
+  io.close((err) => {
+    if (err) {
+      console.error('❌ Socket.io停止エラー:', err);
+    } else {
+      console.log('✅ Socket.ioサーバーを停止しました');
+    }
+    
+    console.log('👋 F-Callサーバーが正常に停止しました');
+    process.exit(0);
+  });
+  
+  // 10秒後に強制終了
+  setTimeout(() => {
+    console.error('⚠️ グレースフルシャットダウンがタイムアウトしました。強制終了します。');
+    process.exit(1);
+  }, 10000);
+};
+
+// シグナルハンドラーの登録
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+console.log('🛡️ エラーハンドリングとグレースフルシャットダウンを設定しました');
