@@ -79,6 +79,86 @@ kill $(cat server.pid)
 
 ## トラブルシューティング
 
+### サーバーが起動しない場合
+
+#### 1. テストスクリプトを実行
+
+まず、サーバーが正常に起動するかテストしてください：
+
+```bash
+cd /Users/j-fukudamac/Desktop/F-Call
+./test-server.sh
+```
+
+このスクリプトは以下を確認します：
+- Node.jsのインストール状況
+- 依存パッケージのインストール状況
+- 証明書ファイルの存在
+- ポートの利用可能性
+- サーバーの起動
+
+#### 2. ログファイルを確認
+
+サーバーのログを確認してください：
+
+```bash
+cd /Users/j-fukudamac/Desktop/F-Call
+cat server.log
+```
+
+エラーログがある場合：
+
+```bash
+cat startup-errors.log
+```
+
+#### 3. 手動でサーバーを起動
+
+スクリプトではなく、手動でサーバーを起動してエラーを確認：
+
+```bash
+cd /Users/j-fukudamac/Desktop/F-Call
+node server.js
+```
+
+#### 4. よくある問題と対処法
+
+**問題: Node.jsが見つからない**
+```bash
+# Node.jsのパスを確認
+which node
+
+# Node.jsがインストールされていない場合
+brew install node
+# または、公式サイトからインストール: https://nodejs.org/
+```
+
+**問題: 依存パッケージがインストールされていない**
+```bash
+cd /Users/j-fukudamac/Desktop/F-Call
+npm install
+```
+
+**問題: ポート3443が既に使用されている**
+```bash
+# 使用しているプロセスを確認
+lsof -i :3443
+
+# プロセスを停止
+./stop-fcall.sh
+# または
+kill $(lsof -ti :3443)
+```
+
+**問題: 証明書ファイルが見つからない**
+```bash
+# 証明書ファイルを確認
+ls -la server.key server.crt
+
+# 証明書ファイルが存在しない場合、生成が必要です
+# README.mdの「新しい証明書を生成する場合」を参照
+```
+
 ### 初回実行時のセキュリティ警告
 
 Macのセキュリティ設定により、初回実行時に警告が表示される場合があります。

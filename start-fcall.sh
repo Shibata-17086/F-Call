@@ -7,6 +7,24 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
+# PATHを設定（AppleScriptから実行する場合に必要）
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+
+# nodeコマンドのパスを取得
+NODE_CMD=$(which node 2>/dev/null || echo "/usr/local/bin/node")
+
+# nodeが存在するか確認
+if [ ! -f "$NODE_CMD" ]; then
+    echo "❌ エラー: Node.jsが見つかりません。Node.jsをインストールしてください。"
+    exit 1
+fi
+
+# 依存パッケージがインストールされているか確認
+if [ ! -d "node_modules" ]; then
+    echo "📦 依存パッケージをインストールしています..."
+    npm install
+fi
+
 # サーバーが既に起動しているかチェック
 if lsof -Pi :3443 -sTCP:LISTEN -t >/dev/null ; then
     echo "⚠️  サーバーは既に起動しています（ポート3443）"
@@ -15,7 +33,7 @@ else
     echo "🚀 F-Call サーバーを起動しています..."
     
     # サーバーをバックグラウンドで起動
-    nohup node server.js > server.log 2>&1 &
+    nohup "$NODE_CMD" server.js > server.log 2>&1 &
     SERVER_PID=$!
     echo "✅ サーバー起動中... (PID: $SERVER_PID)"
     

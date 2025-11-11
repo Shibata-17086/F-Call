@@ -7,6 +7,25 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
+# PATHを設定（AppleScriptから実行する場合に必要）
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+
+# nodeコマンドのパスを取得
+NODE_CMD=$(which node 2>/dev/null || echo "/usr/local/bin/node")
+
+# nodeが存在するか確認
+if [ ! -f "$NODE_CMD" ]; then
+    echo "エラー: Node.jsが見つかりません。Node.jsをインストールしてください。" >&2
+    exit 1
+fi
+
+# 依存パッケージがインストールされているか確認
+if [ ! -d "node_modules" ]; then
+    # エラーログファイルに記録
+    echo "依存パッケージをインストールしています..." >> "$SCRIPT_DIR/startup-errors.log" 2>&1
+    npm install >> "$SCRIPT_DIR/startup-errors.log" 2>&1
+fi
+
 # サーバーが既に起動しているかチェック
 if lsof -Pi :3443 -sTCP:LISTEN -t >/dev/null 2>&1; then
     # サーバーが既に起動している場合、ブラウザだけを開く
@@ -45,19 +64,33 @@ if lsof -Pi :3443 -sTCP:LISTEN -t >/dev/null 2>&1; then
 fi
 
 # サーバーをバックグラウンドで起動
-nohup node server.js > server.log 2>&1 &
+nohup "$NODE_CMD" server.js >> server.log 2>> server.log &
 SERVER_PID=$!
 
 # PIDをファイルに保存
 echo $SERVER_PID > server.pid
 
+# 少し待機してから起動確認
+sleep 2
+
 # サーバーが起動するまで待機（最大15秒）
-for i in {1..30}; do
+STARTED=0
+for i in {1..26}; do
     if lsof -Pi :3443 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        STARTED=1
         break
     fi
     sleep 0.5
 done
+
+# サーバーが起動しなかった場合のエラーログ
+if [ $STARTED -eq 0 ]; then
+    echo "サーバーが起動しませんでした。ログを確認してください: server.log" >> "$SCRIPT_DIR/startup-errors.log"
+    # エラー通知（macOSの場合）
+    if command -v osascript >/dev/null 2>&1; then
+        osascript -e 'display notification "F-Callサーバーが起動しませんでした。ログを確認してください。" with title "F-Call起動エラー"' 2>/dev/null || true
+    fi
+fi
 
 # 少し待機してからブラウザを開く
 sleep 2

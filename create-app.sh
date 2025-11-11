@@ -26,7 +26,13 @@ fi
 # 静默版スクリプトを使用（ターミナルを表示しない）
 cat > /tmp/fcall-launcher.applescript <<'APPLESCRIPT'
 on run
-    do shell script "cd '/Users/j-fukudamac/Desktop/F-Call' && ./start-fcall-quiet.sh" without altering line endings
+    try
+        -- PATHを設定してスクリプトを実行
+        do shell script "export PATH='/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH' && cd '/Users/j-fukudamac/Desktop/F-Call' && bash ./start-fcall-quiet.sh" without altering line endings
+    on error errMsg
+        -- エラーが発生した場合、ダイアログを表示
+        display dialog "サーバー起動エラー: " & errMsg buttons {"OK"} default button "OK" with icon stop
+    end try
 end run
 APPLESCRIPT
 
