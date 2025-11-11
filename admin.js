@@ -51,8 +51,12 @@ let currentCall = null;
 let waitMinutesPerPerson = 5;
 let statistics = { averageWaitTime: 5, averageSessionTime: 10 };
 let currentDate = '';
+let networkInfo = [];
 
 function updateDisplay() {
+  // ネットワーク情報の更新
+  updateNetworkInfo();
+  
   // 統計情報の更新
   updateStatistics();
   
@@ -261,6 +265,55 @@ function updateStatistics() {
   document.getElementById('available-seats').textContent = availableSeats;
 }
 
+function updateNetworkInfo() {
+  const networkInfoElement = document.getElementById('networkInfo');
+  if (!networkInfoElement) return;
+  
+  if (!networkInfo || networkInfo.length === 0) {
+    networkInfoElement.innerHTML = '<div style="color: #666; font-size: 0.9rem;">ネットワーク情報が取得できませんでした</div>';
+    return;
+  }
+  
+  let html = '<div style="margin-bottom: 1rem;">';
+  html += '<div style="font-weight: bold; margin-bottom: 0.5rem; color: #1565c0;">同一LAN内からアクセス可能なURL:</div>';
+  
+  networkInfo.forEach((info, index) => {
+    const baseUrl = info.url;
+    html += `<div style="margin-bottom: 1rem; padding: 1rem; background: white; border-radius: 5px; border: 1px solid #ddd;">`;
+    html += `<div style="font-weight: bold; margin-bottom: 0.8rem; color: #333; font-size: 1.1rem;">📡 ${info.address} <span style="font-size: 0.85rem; font-weight: normal; color: #666;">(${info.interface})</span></div>`;
+    html += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0.8rem; font-size: 0.95rem;">`;
+    
+    // 各画面のURLを表示（クリックでコピー可能）
+    const pages = [
+      { name: '管理画面', path: 'admin.html' },
+      { name: '受付画面', path: 'index.html' },
+      { name: 'スタッフ画面', path: 'staff.html' },
+      { name: '待合室表示', path: 'display.html' }
+    ];
+    
+    pages.forEach(page => {
+      const url = `${baseUrl}/${page.path}`;
+      html += `<div style="padding: 0.5rem; background: #f5f5f5; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">`;
+      html += `<div style="flex: 1;">`;
+      html += `<div style="font-weight: bold; margin-bottom: 0.2rem; color: #333;">${page.name}:</div>`;
+      html += `<div style="color: #1976d2; font-family: monospace; font-size: 0.85rem; word-break: break-all;">${url}</div>`;
+      html += `</div>`;
+      html += `<button onclick="navigator.clipboard.writeText('${url}').then(() => alert('URLをコピーしました: ${url}')).catch(() => prompt('URLをコピーしてください:', '${url}'))" style="margin-left: 0.5rem; padding: 0.3rem 0.6rem; background: #1976d2; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">コピー</button>`;
+      html += `</div>`;
+    });
+    
+    html += `</div>`;
+    html += `</div>`;
+  });
+  
+  html += '</div>';
+  html += '<div style="font-size: 0.85rem; color: #666; margin-top: 0.5rem; padding: 0.5rem; background: #fff3cd; border-radius: 4px; border-left: 3px solid #ffc107;">';
+  html += '⚠️ これらのURLは同じネットワーク（LAN）内の他の端末からアクセスできます。証明書警告が表示される場合は「詳細設定」→「アクセスする」をクリックしてください。';
+  html += '</div>';
+  
+  networkInfoElement.innerHTML = html;
+}
+
 function updateSeatStatusGrid() {
   const grid = document.getElementById('seatStatusGrid');
   if (!grid) return;
@@ -325,6 +378,7 @@ socket.on('init', (data) => {
   waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
   statistics = data.statistics || { averageWaitTime: 5, averageSessionTime: 10 };
   currentDate = data.currentDate || '';
+  networkInfo = data.networkInfo || [];
   updateDisplay();
 });
 
@@ -337,6 +391,7 @@ socket.on('update', (data) => {
   waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
   statistics = data.statistics || { averageWaitTime: 5, averageSessionTime: 10 };
   currentDate = data.currentDate || '';
+  networkInfo = data.networkInfo || [];
   updateDisplay();
 });
 

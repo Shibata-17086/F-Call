@@ -134,6 +134,28 @@ function getCurrentDate() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+// ネットワーク情報を取得する関数
+function getNetworkInfo() {
+  const { networkInterfaces } = require('os');
+  const nets = networkInterfaces();
+  const externalUrls = [];
+  
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      // IPv4アドレスのみを表示し、内部アドレスは除外
+      if (net.family === 'IPv4' && !net.internal) {
+        externalUrls.push({
+          address: net.address,
+          url: `https://${net.address}:3443`,
+          interface: name
+        });
+      }
+    }
+  }
+  
+  return externalUrls;
+}
+
 function formatTime(date) {
   return date.getFullYear() + '-' +
     String(date.getMonth() + 1).padStart(2, '0') + '-' +
@@ -223,6 +245,9 @@ function updateSeatStatus(seatId, status, patientNumber = null) {
 function sendUpdate() {
   checkDateReset(); // 日付チェック
   
+  // ネットワーク情報を取得
+  const networkInfo = getNetworkInfo();
+  
   io.emit('update', {
     tickets,
     issuedHistory,
@@ -231,7 +256,8 @@ function sendUpdate() {
     waitMinutesPerPerson,
     seats,
     statistics,
-    currentDate
+    currentDate,
+    networkInfo
   });
 }
 
@@ -240,6 +266,9 @@ io.on('connection', (socket) => {
   
   try {
     checkDateReset(); // 接続時に日付チェック
+    
+    // ネットワーク情報を取得
+    const networkInfo = getNetworkInfo();
     
     // 初期データ送信
     socket.emit('init', {
@@ -250,7 +279,8 @@ io.on('connection', (socket) => {
       waitMinutesPerPerson,
       seats,
       statistics,
-      currentDate
+      currentDate,
+      networkInfo
     });
     
     console.log(`📤 初期データを送信しました: ${socket.id}`);
@@ -619,24 +649,17 @@ httpsServer.listen(3443, () => {
   console.log('--------------------------------------------------');
   
   // 外部アクセス用URLを表示
-  let externalUrls = [];
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name]) {
-      // IPv4アドレスのみを表示し、内部アドレスは除外
-      if (net.family === 'IPv4' && !net.internal) {
-        externalUrls.push(`https://${net.address}:3443`);
-      }
-    }
-  }
+  const networkInfo = getNetworkInfo();
   
-  if (externalUrls.length > 0) {
+  if (networkInfo.length > 0) {
     console.log('\n外部からアクセス可能なURL:');
-    externalUrls.forEach(url => console.log(`  ${url}`));
+    networkInfo.forEach(info => console.log(`  ${info.url} (${info.interface})`));
     console.log('\n以下のURLを他の端末のブラウザで開いてアクセスできます:');
-    console.log(`  管理画面:  ${externalUrls[0]}/admin.html`);
-    console.log(`  受付画面:  ${externalUrls[0]}/index.html`);
-    console.log(`  スタッフ画面: ${externalUrls[0]}/staff.html`);
-    console.log(`  待合室表示: ${externalUrls[0]}/display.html`);
+    const baseUrl = networkInfo[0].url;
+    console.log(`  管理画面:  ${baseUrl}/admin.html`);
+    console.log(`  受付画面:  ${baseUrl}/index.html`);
+    console.log(`  スタッフ画面: ${baseUrl}/staff.html`);
+    console.log(`  待合室表示: ${baseUrl}/display.html`);
   } else {
     console.log('\n警告: 外部からアクセス可能なネットワークインターフェースが見つかりません');
   }
