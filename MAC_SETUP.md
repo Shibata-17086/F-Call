@@ -65,16 +65,44 @@ cd /Users/j-fukudamac/Desktop/F-Call
 
 ### サーバー停止
 
+#### 方法1: デスクトップアプリケーションを使用（推奨）
+
+1. **デスクトップの「F-Call停止.app」をダブルクリック**
+   - サーバーが自動的に停止します
+   - 停止完了のメッセージが表示されます
+
+**停止アプリケーションの作成:**
+```bash
+cd /Users/j-fukudamac/Desktop/F-Call
+./create-stop-app.sh
+```
+
+#### 方法2: ターミナルから停止
+
 ```bash
 cd /Users/j-fukudamac/Desktop/F-Call
 ./stop-fcall.sh
 ```
 
-または、ターミナルで以下を実行：
+#### 方法3: 手動で停止
 
+PIDファイルを使用：
 ```bash
 cd /Users/j-fukudamac/Desktop/F-Call
 kill $(cat server.pid)
+rm server.pid
+```
+
+ポート番号を使用：
+```bash
+kill $(lsof -ti :3443)
+```
+
+#### 方法4: 強制停止
+
+プロセスが応答しない場合：
+```bash
+kill -9 $(lsof -ti :3443)
 ```
 
 ## トラブルシューティング

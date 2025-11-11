@@ -846,15 +846,35 @@ document.addEventListener('DOMContentLoaded', () => {
           : `${priorityLabel} ${currentCall.number}番の方、${seatName}へどうぞ`;
         
         showNotification(message);
-        // より自然で実際的な呼び出し音声に変更
+        
+        // ============================================
+        // 音声アナウンスのテキストを変更する場合は、ここを編集してください
+        // ============================================
         const seatNumber = currentCall.seat.name.replace(/[^0-9]/g, ''); // 座席番号のみ抽出
         let callMessage;
         
+        // 優先度に応じたメッセージ（オプション）
+        const priorityText = currentCall.priority === 'urgent' ? '緊急の' : 
+                            currentCall.priority === 'appointment' ? '予約の' : '';
+        
+        // 音声メッセージのテンプレートを変更する場合は、以下の部分を編集してください
         if (seatNumber) {
-          callMessage = `受付番号${currentCall.number}番の患者様、${seatNumber}番診察台へお越しください`;
+          // 座席番号が抽出できた場合のメッセージ
+          callMessage = `受付番号${currentCall.number}番の患者さま、${seatNumber}番診察台へお越しください`;
+          // 他の例:
+          // callMessage = `${currentCall.number}番の方、${seatNumber}番台へどうぞ`;
+          // callMessage = `番号${currentCall.number}、${seatNumber}番診察室へ`;
         } else {
-          callMessage = `受付番号${currentCall.number}番の患者様、${currentCall.seat.name}へお越しください`;
+          // 座席番号が抽出できない場合のメッセージ
+          callMessage = `受付番号${currentCall.number}番の患者さま、${currentCall.seat.name}へお越しください`;
+          // 他の例:
+          // callMessage = `${currentCall.number}番の方、${currentCall.seat.name}へどうぞ`;
         }
+        
+        // 優先度メッセージを含める場合（コメントアウトを解除）
+        // if (priorityText) {
+        //   callMessage = `${priorityText}${callMessage}`;
+        // }
         
         speakCallQueued(callMessage);
         

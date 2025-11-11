@@ -24,10 +24,19 @@ const setNumberBtn = document.getElementById('setNumberBtn');
 const resetAll = document.getElementById('resetAll');
 
 // 合成音声テスト用
+// ============================================
+// テスト音声のテキストを変更する場合は、ここを編集してください
+// ============================================
 const testSpeechBtn = document.getElementById('testSpeechBtn');
 if (testSpeechBtn) {
   testSpeechBtn.onclick = () => {
-    const msg = new window.SpeechSynthesisUtterance('受付番号1番の方、1番診察台へどうぞ');
+    // テスト用の音声メッセージ（実際の呼び出し音声と同じ形式にすると確認しやすいです）
+    const testMessage = '受付番号1番の方、1番診察台へどうぞ';
+    // 他の例:
+    // const testMessage = '受付番号1番の患者様、1番診察台へお越しください';
+    // const testMessage = '1番の方、1番台へどうぞ';
+    
+    const msg = new window.SpeechSynthesisUtterance(testMessage);
     msg.lang = 'ja-JP';
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(msg);

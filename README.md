@@ -58,6 +58,23 @@ Macで使用する場合は、デスクトップショートカットを作成�
 
 詳細な手順は [MAC_SETUP.md](./MAC_SETUP.md) を参照してください。
 
+### サーバーの停止
+
+**デスクトップアプリケーションから:**
+1. デスクトップの「F-Call停止.app」をダブルクリック
+
+**ターミナルから:**
+```bash
+cd /Users/j-fukudamac/Desktop/F-Call
+./stop-fcall.sh
+```
+
+停止アプリケーションの作成：
+```bash
+cd /Users/j-fukudamac/Desktop/F-Call
+./create-stop-app.sh
+```
+
 ### 新しい証明書を生成する場合
 ```bash
 # 自己署名証明書の生成（100年有効、ホスト名：F-call）
