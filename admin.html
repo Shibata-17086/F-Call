@@ -43,7 +43,6 @@
       <h2>【サーバー操作時の動作説明】</h2>
       <ul>
         <li>座席（診察台）はここで追加・編集・削除できます。スタッフ画面で呼び出し時に座席を指定します。</li>
-        <li>営業時間外は新規発券が制限されます。</li>
         <li>日付が変わると番号が自動リセットされ、前日の統計が保存されます。</li>
         <li>実際の診察時間を学習して、より正確な待ち時間を予測します。</li>
       </ul>
@@ -73,18 +72,6 @@
           <div class="stat-label">利用可能座席</div>
         </div>
       </div>
-    </div>
-
-    <div class="business-hours-section">
-      <div class="log-title">🕐 営業時間設定</div>
-      <div style="margin-top: 1rem;">
-        <label>開始時間: <input type="time" id="start-time" class="time-input"></label>
-        <label>終了時間: <input type="time" id="end-time" class="time-input"></label>
-        <label>昼休み開始: <input type="time" id="lunch-start" class="time-input"></label>
-        <label>昼休み終了: <input type="time" id="lunch-end" class="time-input"></label>
-        <button id="save-business-hours" class="btn btn-primary">保存</button>
-      </div>
-      <div id="current-status" style="margin-top: 1rem; font-weight: bold;"></div>
     </div>
 
     <div class="section">

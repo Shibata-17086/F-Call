@@ -13,11 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const historyList = document.getElementById('historyList');
   const digitalClock = document.getElementById('digitalClock');
   const dateDisplay = document.getElementById('dateDisplay');
-  const businessHours = document.getElementById('businessHours');
   const notification = document.getElementById('notification');
   const waitingCount = document.getElementById('waitingCount');
   const estimatedWait = document.getElementById('estimatedWait');
-  const statusIndicator = document.getElementById('statusIndicator');
 
   let calledHistory = [];
   let currentCall = null;
@@ -25,12 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let waitMinutesPerPerson = 5;
   let lastCallNumber = null;
   let lastCallSeat = null;
-  let businessHoursConfig = {
-    start: '09:00',
-    end: '18:00',
-    lunchStart: '12:00',
-    lunchEnd: '13:00'
-  };
 
   // 音声再生キュー
   let speechQueue = [];
@@ -429,44 +421,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     dateDisplay.textContent = now.toLocaleDateString('ja-JP', options);
-    
-    updateBusinessHoursDisplay(now);
-  }
-
-  function updateBusinessHoursDisplay(now) {
-    const isOpen = isBusinessOpen(now);
-    const isLunchTime = isLunchBreak(now);
-    
-    businessHours.textContent = `営業時間: ${businessHoursConfig.start}-${businessHoursConfig.end}`;
-    
-    if (isLunchTime) {
-      statusIndicator.innerHTML = '🕐 昼休み中';
-      statusIndicator.className = 'status-indicator lunch';
-    } else if (isOpen) {
-      statusIndicator.innerHTML = '🟢 営業中';
-      statusIndicator.className = 'status-indicator';
-    } else {
-      statusIndicator.innerHTML = '🔴 営業時間外';
-      statusIndicator.className = 'status-indicator closed';
-    }
-  }
-
-  function isBusinessOpen(date = new Date()) {
-    const day = date.getDay();
-    if (day === 0) return false; // 日曜休み
-    
-    const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-    
-    if (time >= businessHoursConfig.lunchStart && time < businessHoursConfig.lunchEnd) {
-      return false;
-    }
-    
-    return time >= businessHoursConfig.start && time < businessHoursConfig.end;
-  }
-
-  function isLunchBreak(date = new Date()) {
-    const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-    return time >= businessHoursConfig.lunchStart && time < businessHoursConfig.lunchEnd;
   }
 
   setInterval(updateClock, 1000);
@@ -879,9 +833,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateDisplay() {
-    // 営業時間の表示を更新
-    updateBusinessHoursDisplay();
-    
     // 現在の呼び出し表示
     if (currentCall && currentCall.number) {
       const seatName = currentCall.seat ? currentCall.seat.name : '';
@@ -985,16 +936,6 @@ document.addEventListener('DOMContentLoaded', () => {
     tickets = data.tickets || [];
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
     
-    if (data.businessHours) {
-      businessHoursConfig = {
-        start: data.businessHours.start || businessHoursConfig.start,
-        end: data.businessHours.end || businessHoursConfig.end,
-        lunchStart: data.businessHours.lunchBreak?.start || businessHoursConfig.lunchStart,
-        lunchEnd: data.businessHours.lunchBreak?.end || businessHoursConfig.lunchEnd
-      };
-      console.log('営業時間設定受信:', businessHoursConfig);
-    }
-    
     updateDisplay();
   });
 
@@ -1004,16 +945,6 @@ document.addEventListener('DOMContentLoaded', () => {
     currentCall = data.currentCall;
     tickets = data.tickets || [];
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
-    
-    if (data.businessHours) {
-      businessHoursConfig = {
-        start: data.businessHours.start || businessHoursConfig.start,
-        end: data.businessHours.end || businessHoursConfig.end,
-        lunchStart: data.businessHours.lunchBreak?.start || businessHoursConfig.lunchStart,
-        lunchEnd: data.businessHours.lunchBreak?.end || businessHoursConfig.lunchEnd
-      };
-      console.log('営業時間設定更新:', businessHoursConfig);
-    }
     
     updateDisplay();
   });
@@ -1025,8 +956,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   socket.on('disconnect', () => {
     console.log('サーバーとの接続が切断されました');
-    statusIndicator.innerHTML = '🔴 接続エラー';
-    statusIndicator.className = 'status-indicator closed';
   });
 
   // 基本的なキーボードショートカット（リロードのみ）

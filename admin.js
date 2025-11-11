@@ -41,16 +41,11 @@ let calledHistory = [];
 let currentCall = null;
 let waitMinutesPerPerson = 5;
 let statistics = { averageWaitTime: 5, averageSessionTime: 10 };
-let businessHours = {};
 let currentDate = '';
-let isBusinessHours = true;
 
 function updateDisplay() {
   // 統計情報の更新
   updateStatistics();
-  
-  // 営業時間情報の更新
-  updateBusinessHoursDisplay();
   
   // 座席状況の更新
   updateSeatStatusGrid();
@@ -257,26 +252,6 @@ function updateStatistics() {
   document.getElementById('available-seats').textContent = availableSeats;
 }
 
-function updateBusinessHoursDisplay() {
-  const statusElement = document.getElementById('current-status');
-  if (statusElement) {
-    const statusText = isBusinessHours ? '🟢 営業中' : '🔴 営業時間外';
-    const timeInfo = businessHours.start && businessHours.end 
-      ? `（${businessHours.start} - ${businessHours.end}）`
-      : '';
-    statusElement.textContent = `${statusText} ${timeInfo}`;
-    statusElement.style.color = isBusinessHours ? '#2e7d32' : '#c62828';
-  }
-  
-  // 営業時間の入力フィールドを更新
-  if (businessHours.start) {
-    document.getElementById('start-time').value = businessHours.start;
-    document.getElementById('end-time').value = businessHours.end;
-    document.getElementById('lunch-start').value = businessHours.lunchBreak?.start || '';
-    document.getElementById('lunch-end').value = businessHours.lunchBreak?.end || '';
-  }
-}
-
 function updateSeatStatusGrid() {
   const grid = document.getElementById('seatStatusGrid');
   if (!grid) return;
@@ -340,9 +315,7 @@ socket.on('init', (data) => {
   currentCall = data.currentCall;
   waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
   statistics = data.statistics || { averageWaitTime: 5, averageSessionTime: 10 };
-  businessHours = data.businessHours || {};
   currentDate = data.currentDate || '';
-  isBusinessHours = data.isBusinessHours !== false;
   updateDisplay();
 });
 
@@ -354,9 +327,7 @@ socket.on('update', (data) => {
   currentCall = data.currentCall;
   waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
   statistics = data.statistics || { averageWaitTime: 5, averageSessionTime: 10 };
-  businessHours = data.businessHours || {};
   currentDate = data.currentDate || '';
-  isBusinessHours = data.isBusinessHours !== false;
   updateDisplay();
 });
 
@@ -445,24 +416,4 @@ resetAll.onclick = () => {
   if (confirm('サーバー全体をリセットしますか？すべてのデータが削除されます')) {
     socket.emit('reset');
   }
-};
-
-// 営業時間設定の保存
-document.getElementById('save-business-hours').onclick = () => {
-  const hours = {
-    start: document.getElementById('start-time').value,
-    end: document.getElementById('end-time').value,
-    lunchBreak: {
-      start: document.getElementById('lunch-start').value,
-      end: document.getElementById('lunch-end').value
-    }
-  };
-  
-  if (!hours.start || !hours.end) {
-    alert('開始時間と終了時間を入力してください');
-    return;
-  }
-  
-  socket.emit('admin:setBusinessHours', hours);
-  alert('営業時間を保存しました');
 };

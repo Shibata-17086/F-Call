@@ -14,14 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const waitingTimeDisplay = document.getElementById('waiting-time');
   const issueTicketButton = document.getElementById('issue-ticket');
   const prioritySelect = document.getElementById('priority-select');
-  const businessHoursDisplay = document.getElementById('business-hours');
   const estimatedTimeDisplay = document.getElementById('estimated-time');
   const queuePositionDisplay = document.getElementById('queue-position');
 
   let tickets = [];
   let issuedHistory = [];
   let statistics = { averageWaitTime: 5 };
-  let isBusinessHours = true;
   let lastIssuedNumber = null;
 
   function updateDisplays() {
@@ -79,22 +77,12 @@ document.addEventListener('DOMContentLoaded', () => {
         queuePositionDisplay.textContent = '---';
       }
     }
-    
-    // 営業時間外の表示
-    if (businessHoursDisplay) {
-      businessHoursDisplay.style.display = isBusinessHours ? 'none' : 'block';
-    }
-    
-    // ボタンの状態
-    issueTicketButton.disabled = !isBusinessHours;
-    issueTicketButton.textContent = isBusinessHours ? '受付番号を発行' : '営業時間外';
   }
 
   socket.on('init', (data) => {
     tickets = Array.isArray(data.tickets) ? data.tickets : [];
     issuedHistory = Array.isArray(data.issuedHistory) ? data.issuedHistory : [];
     statistics = data.statistics || { averageWaitTime: 5 };
-    isBusinessHours = data.isBusinessHours !== false;
     updateDisplays();
   });
 
@@ -102,16 +90,10 @@ document.addEventListener('DOMContentLoaded', () => {
     tickets = Array.isArray(data.tickets) ? data.tickets : [];
     issuedHistory = Array.isArray(data.issuedHistory) ? data.issuedHistory : [];
     statistics = data.statistics || { averageWaitTime: 5 };
-    isBusinessHours = data.isBusinessHours !== false;
     updateDisplays();
   });
 
   issueTicketButton.addEventListener('click', () => {
-    if (!isBusinessHours) {
-      alert('現在は営業時間外です。');
-      return;
-    }
-    
     const priority = prioritySelect ? prioritySelect.value : 'normal';
     socket.emit('issueTicket', { priority });
   });

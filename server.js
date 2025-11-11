@@ -121,13 +121,6 @@ let waitMinutesPerPerson = 5;
 let currentDate = getCurrentDate();
 let dailyTicketCount = 0;
 
-// 営業時間設定
-let businessHours = {
-  start: '09:00',
-  end: '18:00',
-  lunchBreak: { start: '12:00', end: '13:00' }
-};
-
 // 統計データ
 let statistics = {
   averageWaitTime: 5,
@@ -139,22 +132,6 @@ let statistics = {
 function getCurrentDate() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
-
-function getCurrentTime() {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-}
-
-function isBusinessHours() {
-  const currentTime = getCurrentTime();
-  const start = businessHours.start;
-  const end = businessHours.end;
-  const lunchStart = businessHours.lunchBreak.start;
-  const lunchEnd = businessHours.lunchBreak.end;
-  
-  return (currentTime >= start && currentTime <= end) && 
-         !(currentTime >= lunchStart && currentTime <= lunchEnd);
 }
 
 function formatTime(date) {
@@ -254,9 +231,7 @@ function sendUpdate() {
     waitMinutesPerPerson,
     seats,
     statistics,
-    businessHours,
-    currentDate,
-    isBusinessHours: isBusinessHours()
+    currentDate
   });
 }
 
@@ -275,9 +250,7 @@ io.on('connection', (socket) => {
       waitMinutesPerPerson,
       seats,
       statistics,
-      businessHours,
-      currentDate,
-      isBusinessHours: isBusinessHours()
+      currentDate
     });
     
     console.log(`📤 初期データを送信しました: ${socket.id}`);
@@ -300,11 +273,6 @@ io.on('connection', (socket) => {
   socket.on('issueTicket', (data = {}) => {
     try {
       console.log(`🎫 発券リクエスト受信 (${socket.id}):`, data);
-      
-      if (!isBusinessHours()) {
-        socket.emit('error', { message: '現在は営業時間外です' });
-        return;
-      }
       
       dailyTicketCount++;
       const time = formatTime(new Date());
@@ -578,12 +546,6 @@ io.on('connection', (socket) => {
       statistics.averageWaitTime = minutes;
       sendUpdate();
     }
-  });
-
-  // 営業時間設定
-  socket.on('admin:setBusinessHours', (hours) => {
-    businessHours = { ...businessHours, ...hours };
-    sendUpdate();
   });
 
   // 座席管理
