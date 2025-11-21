@@ -42,9 +42,9 @@
     <div class="explain-section">
       <h2>【サーバー操作時の動作説明】</h2>
       <ul>
-        <li>座席（診察台）はここで追加・編集・削除できます。スタッフ画面で呼び出し時に座席を指定します。</li>
+        <li>座席（診察台）はここで追加・編集・削除できます。番号と単位を分けて設定でき、音声アナウンスにも反映されます。</li>
+        <li>スタッフ画面で呼び出し時に座席を指定します。</li>
         <li>日付が変わると番号が自動リセットされ、前日の統計が保存されます。</li>
-        <li>実際の診察時間を学習して、より正確な待ち時間を予測します。</li>
       </ul>
     </div>
 
@@ -56,7 +56,7 @@
     </div>
 
     <div class="statistics-section">
-      <div class="log-title">📊 リアルタイム統計</div>
+      <div class="log-title">📊 統計</div>
       <div class="stats-grid">
         <div class="stat-item">
           <div class="stat-value" id="total-waiting">0</div>
@@ -89,8 +89,20 @@
     <div class="section">
       <div class="log-title">座席（診察台）管理</div>
       <div id="seatList" class="seat-list"></div>
-      <input type="text" id="newSeatName" placeholder="座席名を入力" style="font-size:1rem;">
-      <button id="addSeatBtn" class="btn btn-primary">座席を追加</button>
+      <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; flex-wrap: wrap;">
+        <input type="text" id="newSeatNumber" placeholder="番号 (例: 1)" style="font-size:1rem; width: 100px;">
+        <span style="font-size:1rem;">番</span>
+        <select id="newSeatUnit" style="font-size:1rem; width: 150px; padding: 0.4rem;">
+          <option value="診察台">診察台</option>
+          <option value="ユニット" selected>ユニット</option>
+          <option value="診察室">診察室</option>
+          <option value="ブース">ブース</option>
+          <option value="番台">番台</option>
+          <option value="__custom__">🔧 カスタム入力...</option>
+        </select>
+        <input type="text" id="customSeatUnit" placeholder="カスタム単位を入力" style="font-size:1rem; width: 150px; display: none;">
+        <button id="addSeatBtn" class="btn btn-primary">座席を追加</button>
+      </div>
     </div>
     
     <div class="section">

@@ -114,8 +114,8 @@ let issuedHistory = []; // [{number, time, date}]
 let calledHistory = []; // [{number, seat, time, actualWaitTime}]
 let currentCall = null; // {number, seat, time}
 let seats = [
-  { id: '1', name: '1番台', status: 'available', currentPatient: null, sessionStartTime: null },
-  { id: '2', name: '2番台', status: 'available', currentPatient: null, sessionStartTime: null }
+  { id: '1', name: '1番ユニット', number: '1', unit: 'ユニット', status: 'available', currentPatient: null, sessionStartTime: null },
+  { id: '2', name: '2番ユニット', number: '2', unit: 'ユニット', status: 'available', currentPatient: null, sessionStartTime: null }
 ];
 let waitMinutesPerPerson = 5;
 let currentDate = getCurrentDate();
@@ -592,12 +592,36 @@ io.on('connection', (socket) => {
   });
 
   // 座席管理
-  socket.on('admin:addSeat', (name) => {
-    if (!name || typeof name !== 'string' || !name.trim()) return;
+  socket.on('admin:addSeat', (data) => {
+    // 後方互換性のため、文字列の場合も対応
+    if (typeof data === 'string') {
+      if (!data.trim()) return;
+      const id = Date.now().toString();
+      seats.push({ 
+        id, 
+        name: data.trim(),
+        number: String(seats.length + 1),
+        unit: 'ユニット',
+        status: 'available',
+        currentPatient: null,
+        sessionStartTime: null
+      });
+      sendUpdate();
+      return;
+    }
+    
+    // 新しい形式（number + unit）
+    if (!data || !data.number || !data.unit) return;
     const id = Date.now().toString();
+    const number = String(data.number).trim();
+    const unit = data.unit.trim();
+    const name = `${number}番${unit}`;
+    
     seats.push({ 
       id, 
-      name: name.trim(),
+      name,
+      number,
+      unit,
       status: 'available',
       currentPatient: null,
       sessionStartTime: null
@@ -608,9 +632,22 @@ io.on('connection', (socket) => {
     seats = seats.filter(s => s.id !== id);
     sendUpdate();
   });
-  socket.on('admin:editSeat', ({ id, name }) => {
+  socket.on('admin:editSeat', ({ id, number, unit }) => {
     const seat = seats.find(s => s.id === id);
-    if (seat && name && name.trim()) seat.name = name.trim();
+    if (!seat) return;
+    
+    if (number !== undefined && number !== null && String(number).trim()) {
+      seat.number = String(number).trim();
+    }
+    if (unit !== undefined && unit !== null && String(unit).trim()) {
+      seat.unit = String(unit).trim();
+    }
+    
+    // nameを更新
+    if (seat.number && seat.unit) {
+      seat.name = `${seat.number}番${seat.unit}`;
+    }
+    
     sendUpdate();
   });
 });

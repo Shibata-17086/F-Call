@@ -856,7 +856,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // ============================================
         // 音声アナウンスのテキストを変更する場合は、ここを編集してください
         // ============================================
-        const seatNumber = currentCall.seat.name.replace(/[^0-9]/g, ''); // 座席番号のみ抽出
+        const seatNumber = currentCall.seat.number || currentCall.seat.name.replace(/[^0-9]/g, ''); // 座席番号を取得
+        const seatUnit = currentCall.seat.unit || 'ユニット'; // 座席単位を取得
         let callMessage;
         
         // 優先度に応じたメッセージ（オプション）
@@ -865,13 +866,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 音声メッセージのテンプレートを変更する場合は、以下の部分を編集してください
         if (seatNumber) {
-          // 座席番号が抽出できた場合のメッセージ
-          callMessage = `受付番号${currentCall.number}番の患者さま、${seatNumber}番診察台へお越しください`;
+          // 座席番号が取得できた場合のメッセージ（単位も含む）
+          callMessage = `受付番号${currentCall.number}番の患者さま、${seatNumber}番${seatUnit}へお越しください`;
           // 他の例:
-          // callMessage = `${currentCall.number}番の方、${seatNumber}番台へどうぞ`;
-          // callMessage = `番号${currentCall.number}、${seatNumber}番診察室へ`;
+          // callMessage = `${currentCall.number}番の方、${seatNumber}番${seatUnit}へどうぞ`;
+          // callMessage = `番号${currentCall.number}、${seatNumber}番${seatUnit}へ`;
         } else {
-          // 座席番号が抽出できない場合のメッセージ
+          // 座席番号が取得できない場合のメッセージ
           callMessage = `受付番号${currentCall.number}番の患者さま、${currentCall.seat.name}へお越しください`;
           // 他の例:
           // callMessage = `${currentCall.number}番の方、${currentCall.seat.name}へどうぞ`;
