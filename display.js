@@ -927,7 +927,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     
-    const historyToShow = displayHistory.slice(0, 6);
+    const historyToShow = displayHistory.slice(0, 10);
     
     if (historyToShow.length === 0) {
       const emptyMsg = document.createElement('div');
