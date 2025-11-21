@@ -26,6 +26,18 @@ const setSeatSelect = document.getElementById('setSeatSelect');
 const setNumberBtn = document.getElementById('setNumberBtn');
 const resetAll = document.getElementById('resetAll');
 
+// 音声設定UI要素
+const voiceSelect = document.getElementById('voiceSelect');
+const rateSlider = document.getElementById('rateSlider');
+const rateValue = document.getElementById('rateValue');
+const pitchSlider = document.getElementById('pitchSlider');
+const pitchValue = document.getElementById('pitchValue');
+const volumeSlider = document.getElementById('volumeSlider');
+const volumeValue = document.getElementById('volumeValue');
+const saveVoiceSettingsBtn = document.getElementById('saveVoiceSettingsBtn');
+const resetVoiceSettingsBtn = document.getElementById('resetVoiceSettingsBtn');
+const voiceSettingsStatus = document.getElementById('voiceSettingsStatus');
+
 // 単位リスト（LocalStorageから読み込み）
 let customUnits = JSON.parse(localStorage.getItem('customUnits') || '[]');
 const defaultUnits = ['診察台', 'ユニット', '診察室', 'ブース', '番台'];
@@ -78,6 +90,223 @@ if (newSeatUnit) {
   };
 }
 
+// ============================================
+// 音声設定機能
+// ============================================
+
+// デフォルト音声設定
+const defaultVoiceSettings = {
+  voiceURI: '', // 空文字列は自動選択
+  rate: 0.95,
+  pitch: 1.0,
+  volume: 1.0
+};
+
+// LocalStorageから音声設定を読み込み
+function loadVoiceSettings() {
+  const saved = localStorage.getItem('voiceSettings');
+  if (saved) {
+    try {
+      return { ...defaultVoiceSettings, ...JSON.parse(saved) };
+    } catch (e) {
+      console.error('音声設定の読み込みエラー:', e);
+      return { ...defaultVoiceSettings };
+    }
+  }
+  return { ...defaultVoiceSettings };
+}
+
+// 音声設定をLocalStorageに保存
+function saveVoiceSettingsToStorage(settings) {
+  localStorage.setItem('voiceSettings', JSON.stringify(settings));
+}
+
+// 現在の音声設定
+let currentVoiceSettings = loadVoiceSettings();
+
+// 音声リストを読み込んでドロップダウンに追加
+function loadVoiceList() {
+  if (!voiceSelect) return;
+  
+  const voices = window.speechSynthesis.getVoices();
+  
+  // 既存のオプションをクリア（自動選択オプション以外）
+  voiceSelect.innerHTML = '<option value="">自動選択（推奨）</option>';
+  
+  // 日本語音声のみをフィルタ
+  const japaneseVoices = voices.filter(voice => 
+    voice.lang === 'ja-JP' || voice.lang.startsWith('ja')
+  );
+  
+  japaneseVoices.forEach(voice => {
+    const option = document.createElement('option');
+    option.value = voice.voiceURI;
+    option.textContent = `${voice.name} (${voice.lang})${voice.localService ? ' - オフライン対応' : ''}`;
+    
+    if (voice.voiceURI === currentVoiceSettings.voiceURI) {
+      option.selected = true;
+    }
+    
+    voiceSelect.appendChild(option);
+  });
+  
+  console.log(`🎵 日本語音声: ${japaneseVoices.length}個読み込み完了`);
+}
+
+// UIに音声設定を反映
+function updateVoiceSettingsUI() {
+  if (rateSlider) {
+    rateSlider.value = currentVoiceSettings.rate;
+    rateValue.textContent = currentVoiceSettings.rate.toFixed(2);
+  }
+  if (pitchSlider) {
+    pitchSlider.value = currentVoiceSettings.pitch;
+    pitchValue.textContent = currentVoiceSettings.pitch.toFixed(1);
+  }
+  if (volumeSlider) {
+    volumeSlider.value = currentVoiceSettings.volume;
+    volumeValue.textContent = currentVoiceSettings.volume.toFixed(1);
+  }
+}
+
+// スライダーの値変更イベント
+if (rateSlider) {
+  rateSlider.oninput = () => {
+    rateValue.textContent = parseFloat(rateSlider.value).toFixed(2);
+  };
+}
+
+if (pitchSlider) {
+  pitchSlider.oninput = () => {
+    pitchValue.textContent = parseFloat(pitchSlider.value).toFixed(1);
+  };
+}
+
+if (volumeSlider) {
+  volumeSlider.oninput = () => {
+    volumeValue.textContent = parseFloat(volumeSlider.value).toFixed(1);
+  };
+}
+
+// 設定保存ボタン
+if (saveVoiceSettingsBtn) {
+  saveVoiceSettingsBtn.onclick = () => {
+    currentVoiceSettings = {
+      voiceURI: voiceSelect ? voiceSelect.value : '',
+      rate: rateSlider ? parseFloat(rateSlider.value) : 0.95,
+      pitch: pitchSlider ? parseFloat(pitchSlider.value) : 1.0,
+      volume: volumeSlider ? parseFloat(volumeSlider.value) : 1.0
+    };
+    
+    console.log('🔊 音声設定を保存・送信中:', currentVoiceSettings);
+    console.log(`   - 音声URI: "${currentVoiceSettings.voiceURI}" (${currentVoiceSettings.voiceURI ? '指定あり' : '自動選択'})`);
+    console.log(`   - 速度: ${currentVoiceSettings.rate}`);
+    console.log(`   - ピッチ: ${currentVoiceSettings.pitch}`);
+    console.log(`   - 音量: ${currentVoiceSettings.volume}`);
+    
+    // LocalStorageに保存
+    saveVoiceSettingsToStorage(currentVoiceSettings);
+    console.log('💾 LocalStorageに保存完了');
+    
+    // サーバーに設定を送信（待合室表示画面で使用）
+    socket.emit('admin:updateVoiceSettings', currentVoiceSettings);
+    console.log('📤 サーバーに送信完了');
+    
+    // 保存成功メッセージを表示
+    if (voiceSettingsStatus) {
+      voiceSettingsStatus.style.display = 'block';
+      voiceSettingsStatus.style.background = '#d4edda';
+      voiceSettingsStatus.style.color = '#155724';
+      voiceSettingsStatus.style.border = '1px solid #c3e6cb';
+      voiceSettingsStatus.textContent = '✅ 音声設定を保存しました。全ての待合室表示画面に反映されます。';
+      
+      setTimeout(() => {
+        voiceSettingsStatus.style.display = 'none';
+      }, 5000);
+    }
+  };
+}
+
+// サーバーからの音声設定更新完了通知を受信
+socket.on('voiceSettingsUpdated', (result) => {
+  if (result.success) {
+    console.log('✅ サーバーが音声設定の更新を確認しました');
+    console.log('📢 待合室表示画面に即座に反映されました');
+  } else {
+    console.error('❌ サーバーでの音声設定更新に失敗:', result.error);
+    if (voiceSettingsStatus) {
+      voiceSettingsStatus.style.display = 'block';
+      voiceSettingsStatus.style.background = '#f8d7da';
+      voiceSettingsStatus.style.color = '#721c24';
+      voiceSettingsStatus.style.border = '1px solid #f5c6cb';
+      voiceSettingsStatus.textContent = '❌ 音声設定の保存に失敗しました。再度お試しください。';
+      
+      setTimeout(() => {
+        voiceSettingsStatus.style.display = 'none';
+      }, 5000);
+    }
+  }
+});
+
+// 音声設定が変更されたときの通知も受信（確認用）
+socket.on('voiceSettingsChanged', (settings) => {
+  console.log('🔊 音声設定変更を確認:', settings);
+});
+
+// デフォルトに戻すボタン
+if (resetVoiceSettingsBtn) {
+  resetVoiceSettingsBtn.onclick = () => {
+    if (confirm('音声設定をデフォルトに戻しますか？')) {
+      currentVoiceSettings = { ...defaultVoiceSettings };
+      saveVoiceSettingsToStorage(currentVoiceSettings);
+      updateVoiceSettingsUI();
+      
+      if (voiceSelect) {
+        voiceSelect.value = '';
+      }
+      
+      // リセット成功メッセージを表示
+      if (voiceSettingsStatus) {
+        voiceSettingsStatus.style.display = 'block';
+        voiceSettingsStatus.style.background = '#fff3cd';
+        voiceSettingsStatus.style.color = '#856404';
+        voiceSettingsStatus.style.border = '1px solid #ffeaa7';
+        voiceSettingsStatus.textContent = '🔄 音声設定をデフォルトに戻しました。';
+        
+        setTimeout(() => {
+          voiceSettingsStatus.style.display = 'none';
+        }, 3000);
+      }
+      
+      // サーバーに設定を送信
+      socket.emit('admin:updateVoiceSettings', currentVoiceSettings);
+      
+      console.log('🔊 音声設定をリセット');
+    }
+  };
+}
+
+// 音声エンジンの読み込み完了を待つ
+if ('speechSynthesis' in window) {
+  // 音声リストを読み込み
+  loadVoiceList();
+  
+  // 音声エンジンが更新されたときに再読み込み
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = loadVoiceList;
+  }
+  
+  // 初期設定をUIに反映
+  updateVoiceSettingsUI();
+  
+  // 定期的に音声エンジンをチェック（遅延読み込み対策）
+  setTimeout(() => {
+    if (window.speechSynthesis.getVoices().length > 0) {
+      loadVoiceList();
+    }
+  }, 1000);
+}
+
 // 合成音声テスト用
 // ============================================
 // テスト音声のテキストを変更する場合は、ここを編集してください
@@ -86,21 +315,81 @@ const testSpeechBtn = document.getElementById('testSpeechBtn');
 if (testSpeechBtn) {
   testSpeechBtn.onclick = () => {
     // 最初の座席の情報を使用してテスト
-    let testMessage = '受付番号1番の患者さま、1番診察台へお越しください';
+    let testMessage = '受付番号1番の患者さま、1番ユニットへお越しください';
     
     if (seats.length > 0) {
       const firstSeat = seats[0];
       const seatNumber = firstSeat.number || '1';
-      const seatUnit = firstSeat.unit || '診察台';
+      const seatUnit = firstSeat.unit || 'ユニット';
       testMessage = `受付番号1番の患者さま、${seatNumber}番${seatUnit}へお越しください`;
     }
     
-    // 他の例:
-    // const testMessage = '受付番号1番の患者様、1番診察台へお越しください';
-    // const testMessage = '1番の方、1番台へどうぞ';
-    
     const msg = new window.SpeechSynthesisUtterance(testMessage);
     msg.lang = 'ja-JP';
+    
+    // 現在のUI設定を取得（保存前でもテストできるように）
+    const testRate = rateSlider ? parseFloat(rateSlider.value) : currentVoiceSettings.rate;
+    const testPitch = pitchSlider ? parseFloat(pitchSlider.value) : currentVoiceSettings.pitch;
+    const testVolume = volumeSlider ? parseFloat(volumeSlider.value) : currentVoiceSettings.volume;
+    const testVoiceURI = voiceSelect ? voiceSelect.value : currentVoiceSettings.voiceURI;
+    
+    const voices = window.speechSynthesis.getVoices();
+    let selectedVoice = null;
+    
+    // 音声エンジンの選択
+    if (testVoiceURI) {
+      // 特定の音声が選択されている場合
+      selectedVoice = voices.find(voice => voice.voiceURI === testVoiceURI);
+      console.log(`🎤 指定された音声: ${selectedVoice ? selectedVoice.name : '見つかりません'}`);
+    } else {
+      // 自動選択（Mac最適化）
+      const orenVoice = voices.find(voice => 
+        (voice.lang === 'ja-JP' || voice.lang.startsWith('ja')) && 
+        (voice.name.includes('O-ren') || voice.name.includes('O-Ren'))
+      );
+      
+      const kyokoVoice = voices.find(voice => 
+        (voice.lang === 'ja-JP' || voice.lang.startsWith('ja')) && 
+        voice.name.includes('Kyoko')
+      );
+      
+      const otoyaVoice = voices.find(voice => 
+        (voice.lang === 'ja-JP' || voice.lang.startsWith('ja')) && 
+        voice.name.includes('Otoya')
+      );
+      
+      const appleVoice = voices.find(voice => 
+        (voice.lang === 'ja-JP' || voice.lang.startsWith('ja')) && 
+        voice.localService
+      );
+      
+      const anyJapaneseVoice = voices.find(voice => 
+        voice.lang === 'ja-JP' || voice.lang.startsWith('ja')
+      );
+      
+      selectedVoice = orenVoice || kyokoVoice || otoyaVoice || appleVoice || anyJapaneseVoice;
+      console.log(`🍎 自動選択: ${selectedVoice ? selectedVoice.name : '見つかりません'}`);
+    }
+    
+    if (selectedVoice) {
+      msg.voice = selectedVoice;
+    }
+    
+    // UI設定を適用
+    msg.rate = testRate;
+    msg.volume = testVolume;
+    
+    // O-Renの場合のみデフォルトピッチを1.3に（ユーザーが変更していない場合）
+    if (selectedVoice && (selectedVoice.name.includes('O-ren') || selectedVoice.name.includes('O-Ren'))) {
+      // ピッチスライダーが初期値（1.0）の場合のみ1.3に変更
+      msg.pitch = (testPitch === 1.0 && !pitchSlider.classList.contains('user-modified')) ? 1.3 : testPitch;
+      console.log(`🎤 O-Ren使用: ピッチ=${msg.pitch}を適用`);
+    } else {
+      msg.pitch = testPitch;
+    }
+    
+    console.log(`🔊 テスト音声設定 - 速度: ${msg.rate}, ピッチ: ${msg.pitch}, 音量: ${msg.volume}, 音声: ${selectedVoice ? selectedVoice.name : 'なし'}`);
+    
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(msg);
   };

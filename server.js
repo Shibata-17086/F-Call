@@ -132,6 +132,16 @@ let statistics = {
 // 表示設定
 let showEstimatedWaitTime = true;
 
+// 音声設定（グローバル）
+let voiceSettings = {
+  voiceURI: '',
+  rate: 0.95,
+  pitch: 1.0,
+  volume: 1.0
+};
+
+console.log('🔊 サーバー起動時の音声設定:', voiceSettings);
+
 function getCurrentDate() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -261,7 +271,8 @@ function sendUpdate() {
     statistics,
     currentDate,
     networkInfo,
-    showEstimatedWaitTime
+    showEstimatedWaitTime,
+    voiceSettings
   });
 }
 
@@ -285,7 +296,8 @@ io.on('connection', (socket) => {
       statistics,
       currentDate,
       networkInfo,
-      showEstimatedWaitTime
+      showEstimatedWaitTime,
+      voiceSettings
     });
     
     console.log(`📤 初期データを送信しました: ${socket.id}`);
@@ -649,6 +661,55 @@ io.on('connection', (socket) => {
     }
     
     sendUpdate();
+  });
+  
+  // 音声設定の更新
+  socket.on('admin:updateVoiceSettings', (settings) => {
+    try {
+      if (!settings || typeof settings !== 'object') {
+        console.error('❌ 無効な音声設定:', settings);
+        socket.emit('voiceSettingsUpdated', { 
+          success: false, 
+          error: '無効な設定データ' 
+        });
+        return;
+      }
+      
+      // 音声設定を更新（数値型に確実に変換）
+      const newSettings = {
+        voiceURI: String(settings.voiceURI || ''),
+        rate: Number(settings.rate) || 0.95,
+        pitch: Number(settings.pitch) || 1.0,
+        volume: Number(settings.volume) || 1.0
+      };
+      
+      voiceSettings = newSettings;
+      
+      console.log('🔊 音声設定を更新:');
+      console.log(`   URI="${voiceSettings.voiceURI}" rate=${voiceSettings.rate} pitch=${voiceSettings.pitch} volume=${voiceSettings.volume}`);
+      
+      // 全クライアントに即座に音声設定を配信（専用イベント）
+      io.emit('voiceSettingsChanged', voiceSettings);
+      console.log('📢 音声設定を全クライアントに即座に配信');
+      
+      // 通常の更新も送信
+      sendUpdate();
+      
+      // 成功を管理画面に通知
+      socket.emit('voiceSettingsUpdated', { 
+        success: true, 
+        settings: voiceSettings 
+      });
+      
+      console.log('✅ 配信完了');
+      
+    } catch (error) {
+      console.error('❌ 音声設定更新エラー:', error);
+      socket.emit('voiceSettingsUpdated', { 
+        success: false, 
+        error: error.message 
+      });
+    }
   });
 });
 

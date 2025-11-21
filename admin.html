@@ -150,7 +150,55 @@
     </div>
     
     <div class="section">
-      <button id="testSpeechBtn" class="btn btn-primary">音声テスト</button>
+      <div class="log-title">🔊 音声設定</div>
+      <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; font-weight: bold; margin-bottom: 0.5rem; color: #333;">音声エンジン</label>
+          <select id="voiceSelect" style="width: 100%; padding: 0.5rem; font-size: 1rem; border-radius: 4px; border: 1px solid #ddd;">
+            <option value="">自動選択（推奨）</option>
+          </select>
+          <div style="font-size: 0.8rem; color: #666; margin-top: 0.3rem;">※ 自動選択ではO-Ren（女性）が優先されます</div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; font-weight: bold; margin-bottom: 0.5rem; color: #333;">再生速度: <span id="rateValue">0.95</span></label>
+          <input type="range" id="rateSlider" min="0.5" max="1.5" step="0.05" value="0.95" style="width: 100%;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #666;">
+            <span>遅い (0.5)</span>
+            <span>標準 (1.0)</span>
+            <span>速い (1.5)</span>
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; font-weight: bold; margin-bottom: 0.5rem; color: #333;">ピッチ（高さ）: <span id="pitchValue">1.0</span></label>
+          <input type="range" id="pitchSlider" min="0.5" max="2.0" step="0.1" value="1.0" style="width: 100%;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #666;">
+            <span>低い (0.5)</span>
+            <span>標準 (1.0)</span>
+            <span>高い (2.0)</span>
+          </div>
+          <div style="font-size: 0.8rem; color: #666; margin-top: 0.3rem;">※ O-Ren使用時はデフォルトで1.3に設定されます</div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; font-weight: bold; margin-bottom: 0.5rem; color: #333;">音量: <span id="volumeValue">1.0</span></label>
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="1.0" style="width: 100%;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #666;">
+            <span>無音 (0)</span>
+            <span>標準 (1.0)</span>
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button id="testSpeechBtn" class="btn btn-primary">音声テスト</button>
+          <button id="saveVoiceSettingsBtn" class="btn" style="background: #4caf50; color: white;">設定を保存</button>
+          <button id="resetVoiceSettingsBtn" class="btn" style="background: #ff9800; color: white;">デフォルトに戻す</button>
+        </div>
+        
+        <div id="voiceSettingsStatus" style="margin-top: 1rem; padding: 0.5rem; border-radius: 4px; display: none;"></div>
+      </div>
     </div>
   </div>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>

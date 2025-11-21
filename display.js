@@ -26,6 +26,15 @@ document.addEventListener('DOMContentLoaded', () => {
   let showEstimatedWaitTime = true;
   let lastCallNumber = null;
   let lastCallSeat = null;
+  
+  // 音声設定（サーバーから受信）
+  // 注: O-Ren使用時はpitchが1.3に自動調整されます
+  let voiceSettings = {
+    voiceURI: '',
+    rate: 0.95,
+    pitch: 1.0,  // デフォルト（O-Ren以外）
+    volume: 1.0
+  };
 
   // 音声再生キュー
   let speechQueue = [];
@@ -635,6 +644,12 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
         const msg = new SpeechSynthesisUtterance(text);
         
+        // 利用可能な音声を取得
+        const voices = speechSynthesis.getVoices();
+        console.log(`🎵 現在の音声数: ${voices.length}`);
+        
+        let selectedVoice = null;
+        
         // ラズベリーパイ向けの音声設定最適化
         if (isRaspberryPi) {
           msg.lang = 'en-US'; // ラズベリーパイでは英語の方が安定
@@ -642,20 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
           msg.pitch = 1.0;
           msg.volume = 1.0;
           console.log('🥧 ラズベリーパイ向け音声設定を適用');
-        } else {
-          msg.lang = 'ja-JP';
-          msg.rate = 0.7;
-          msg.pitch = 1.0;
-          msg.volume = 1.0;
-        }
-        
-        // 利用可能な音声を探す
-        const voices = speechSynthesis.getVoices();
-        console.log(`🎵 現在の音声数: ${voices.length}`);
-        
-        let selectedVoice = null;
-        
-        if (isRaspberryPi) {
+          
           // ラズベリーパイでは英語音声を優先
           const englishVoice = voices.find(voice => 
             voice.lang.includes('en') || voice.name.toLowerCase().includes('english')
@@ -670,16 +672,65 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(`🥧 ラズベリーパイ用音声選択: ${selectedVoice.name} (${selectedVoice.lang})`);
           }
         } else {
-          // その他のデバイスでは日本語音声を優先
-          const japaneseVoice = voices.find(voice => 
-            voice.lang === 'ja-JP' || voice.lang === 'ja' || voice.name.includes('Japanese') || voice.name.includes('日本語')
-          );
+          // Mac専用最適化 - 管理画面の音声設定を適用
+          msg.lang = 'ja-JP';
           
-          selectedVoice = japaneseVoice;
-          
-          if (selectedVoice) {
-            console.log(`✅ 日本語音声を使用: ${selectedVoice.name}`);
+          // 音声エンジンの選択
+          if (voiceSettings.voiceURI && voiceSettings.voiceURI !== '') {
+            // 管理画面で特定の音声が選択されている場合
+            selectedVoice = voices.find(voice => voice.voiceURI === voiceSettings.voiceURI);
+            if (selectedVoice) {
+              console.log(`🎤 指定音声: ${selectedVoice.name}`);
+            }
           }
+          
+          // 音声が見つからない場合または自動選択の場合
+          if (!selectedVoice) {
+            // 優先順位: O-Ren (女性) > Kyoko (女性) > Otoya (男性) > その他の日本語
+            const orenVoice = voices.find(voice => 
+              (voice.lang === 'ja-JP' || voice.lang.startsWith('ja')) && 
+              (voice.name.includes('O-ren') || voice.name.includes('O-Ren'))
+            );
+            
+            const kyokoVoice = voices.find(voice => 
+              (voice.lang === 'ja-JP' || voice.lang.startsWith('ja')) && 
+              voice.name.includes('Kyoko')
+            );
+            
+            const otoyaVoice = voices.find(voice => 
+              (voice.lang === 'ja-JP' || voice.lang.startsWith('ja')) && 
+              voice.name.includes('Otoya')
+            );
+            
+            const appleVoice = voices.find(voice => 
+              (voice.lang === 'ja-JP' || voice.lang.startsWith('ja')) && 
+              voice.localService
+            );
+            
+            const anyJapaneseVoice = voices.find(voice => 
+              voice.lang === 'ja-JP' || voice.lang.startsWith('ja')
+            );
+            
+            selectedVoice = orenVoice || kyokoVoice || otoyaVoice || appleVoice || anyJapaneseVoice;
+            
+            if (selectedVoice) {
+              console.log(`✅ 自動選択: ${selectedVoice.name}`);
+            }
+          }
+          
+          // 音声設定を適用（確実に数値として設定）
+          msg.rate = Number(voiceSettings.rate) || 0.95;
+          msg.volume = Number(voiceSettings.volume) || 1.0;
+          
+          // O-Renの場合はピッチを1.3に、それ以外は設定値または1.0
+          if (selectedVoice && (selectedVoice.name.includes('O-ren') || selectedVoice.name.includes('O-Ren'))) {
+            msg.pitch = Number(voiceSettings.pitch) || 1.3;
+            console.log(`🎤 O-Ren使用: デフォルトピッチ1.3を適用`);
+          } else {
+            msg.pitch = Number(voiceSettings.pitch) || 1.0;
+          }
+          
+          console.log(`🔊 音声パラメータ: 速度=${msg.rate} ピッチ=${msg.pitch} 音量=${msg.volume} 音声=${selectedVoice ? selectedVoice.name : 'なし'}`);
         }
         
         // 音声が見つからない場合のフォールバック
@@ -955,27 +1006,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // 音声設定を更新する共通関数
+  const updateVoiceSettings = (settings) => {
+    if (settings) {
+      voiceSettings = {
+        voiceURI: String(settings.voiceURI || ''),
+        rate: Number(settings.rate) || 0.95,
+        pitch: Number(settings.pitch) || 1.0,
+        volume: Number(settings.volume) || 1.0
+      };
+      console.log(`🔊 音声設定: URI="${voiceSettings.voiceURI || '自動'}" rate=${voiceSettings.rate} pitch=${voiceSettings.pitch} vol=${voiceSettings.volume}`);
+    }
+  };
+
   // Socket.io イベントハンドラ
   socket.on('init', (data) => {
-    console.log('初期データ受信:', data);
+    console.log('📥 初期データ受信');
     calledHistory = data.calledHistory || [];
     currentCall = data.currentCall;
     tickets = data.tickets || [];
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
     showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
-    
+    updateVoiceSettings(data.voiceSettings);
     updateDisplay();
   });
 
   socket.on('update', (data) => {
-    console.log('更新データ受信:', data);
     calledHistory = data.calledHistory || [];
     currentCall = data.currentCall;
     tickets = data.tickets || [];
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
     showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
-    
+    updateVoiceSettings(data.voiceSettings);
     updateDisplay();
+  });
+
+  // 音声設定が変更されたときの専用イベント（即座に反映）
+  socket.on('voiceSettingsChanged', (settings) => {
+    console.log('🔊 音声設定が即座に更新されました');
+    updateVoiceSettings(settings);
+    
+    // 視覚的なフィードバックを表示
+    const notification = document.getElementById('notification');
+    if (notification) {
+      notification.textContent = '🔊 音声設定が更新されました';
+      notification.className = 'notification show';
+      setTimeout(() => {
+        notification.className = 'notification';
+      }, 3000);
+    }
   });
 
   // 接続状態の監視
@@ -999,51 +1078,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 画面クリック時に音声初期化（ユーザー操作が必要なため）
-  document.addEventListener('click', () => {
-    if (!audioInitialized) {
-      console.log('👆 ユーザークリックによる音声初期化');
-      initializeAudio();
-    }
-  }, { once: true });
-
-  // 画面タッチ時にも音声初期化（タッチデバイス対応）
-  document.addEventListener('touchstart', () => {
-    if (!audioInitialized) {
-      console.log('👆 ユーザータッチによる音声初期化');
-      initializeAudio();
-    }
-  }, { once: true });
-
-  // ページ読み込み完了時に音声システムを初期化
-  document.addEventListener('DOMContentLoaded', () => {
-    console.log('📄 DOMContentLoaded: 音声システム初期化開始');
+  // 音声初期化を一度だけ実行する統合関数
+  let audioInitAttempted = false;
+  
+  const tryInitializeAudio = (source) => {
+    if (audioInitAttempted) return;
+    audioInitAttempted = true;
+    console.log(`🔊 音声システム初期化開始 (${source})`);
+    
     setTimeout(() => {
       initializeAudio();
-    }, 1000);
-  });
+    }, 500);
+  };
 
-  // ページ完全読み込み時にも音声システム初期化を試行
-  window.addEventListener('load', () => {
-    console.log('🌐 ページ完全読み込み: 音声システム初期化確認');
-    setTimeout(() => {
-      if (!audioInitialized) {
-        console.log('🔄 音声システム未初期化のため再試行');
-        initializeAudio();
-      }
-    }, 2000);
-  });
-
-  // 定期的な音声エンジンチェック（5秒ごと）
-  setInterval(() => {
-    if (!audioInitialized && 'speechSynthesis' in window) {
-      const voices = speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        console.log('🔄 定期チェック: 音声エンジンが利用可能になりました');
-        initializeAudio();
-      }
+  // ユーザー操作時に音声初期化（一度だけ）
+  const initOnUserAction = () => {
+    if (!audioInitialized && !audioInitAttempted) {
+      tryInitializeAudio('ユーザー操作');
     }
-  }, 5000);
+  };
+
+  document.addEventListener('click', initOnUserAction, { once: true });
+  document.addEventListener('touchstart', initOnUserAction, { once: true });
+
+  // ページ読み込み完了時に音声システムを初期化（1秒待機）
+  setTimeout(() => {
+    if (!audioInitAttempted) {
+      tryInitializeAudio('自動初期化');
+    }
+  }, 1000);
 
   // 画面の可視性変更時の処理
   document.addEventListener('visibilitychange', () => {
