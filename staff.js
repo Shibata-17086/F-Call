@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let calledHistory = [];
   let currentCall = null;
   let seats = [];
+  let showEstimatedWaitTime = true;
 
   // デバッグ情報を表示
   function showDebug(message) {
@@ -148,14 +149,16 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         const priorityLabel = getPriorityLabel(ticket.priority);
-        const waitTimeInfo = ticket.estimatedWaitTime ? `予想: ${ticket.estimatedWaitTime}分` : '';
+        const waitTimeMarkup = showEstimatedWaitTime && ticket.estimatedWaitTime
+          ? `<div style="font-size:0.8rem;color:#666;">予想: ${ticket.estimatedWaitTime}分</div>`
+          : '';
         
         const numDiv = document.createElement('div');
         numDiv.innerHTML = `
           <div style="font-size:1.5rem;font-weight:bold;">${ticket.number}</div>
           <div style="font-size:0.9rem;color:#888;">${ticket.time}</div>
           <div style="font-size:0.8rem;font-weight:bold;color:#1565c0;">${priorityLabel}</div>
-          <div style="font-size:0.8rem;color:#666;">${waitTimeInfo}</div>
+          ${waitTimeMarkup}
         `;
         numDiv.style.marginBottom = '0.5rem';
         numDiv.style.textAlign = 'center';
@@ -364,6 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
     calledHistory = data.calledHistory || [];
     currentCall = data.currentCall;
     seats = data.seats || [];
+    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
     updateDisplay();
   });
 
@@ -374,6 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
     calledHistory = data.calledHistory || [];
     currentCall = data.currentCall;
     seats = data.seats || [];
+    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
     updateDisplay();
   });
 

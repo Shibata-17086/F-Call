@@ -15,12 +15,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const dateDisplay = document.getElementById('dateDisplay');
   const notification = document.getElementById('notification');
   const waitingCount = document.getElementById('waitingCount');
+  const waitingCountCard = document.getElementById('waitingCountCard');
   const estimatedWait = document.getElementById('estimatedWait');
+  const estimatedWaitCard = document.getElementById('estimatedWaitCard');
 
   let calledHistory = [];
   let currentCall = null;
   let tickets = [];
   let waitMinutesPerPerson = 5;
+  let showEstimatedWaitTime = true;
   let lastCallNumber = null;
   let lastCallSeat = null;
 
@@ -820,16 +823,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const waitCount = tickets.length;
     const estimatedMinutes = calculateEstimatedWaitTime();
     
-    waitingCount.innerHTML = `${waitCount}<span class="info-item-unit">人</span>`;
-    estimatedWait.innerHTML = `${estimatedMinutes}<span class="info-item-unit">分</span>`;
-    
-    if (waitCount > 0) {
-      waitingCount.style.color = '#2c80b9';
-      estimatedWait.style.color = '#2c80b9';
-    } else {
-      waitingCount.style.color = '#28a745';
-      estimatedWait.style.color = '#28a745';
+    waitingCount.textContent = waitCount;
+    if (estimatedWaitCard) {
+      estimatedWaitCard.style.display = showEstimatedWaitTime ? 'flex' : 'none';
     }
+    if (showEstimatedWaitTime) {
+      estimatedWait.textContent = estimatedMinutes;
+    } else {
+      estimatedWait.textContent = '';
+    }
+    
+    const activeColor = waitCount > 0 ? '#2c80b9' : '#28a745';
+    waitingCount.style.color = activeColor;
+    if (estimatedWait) estimatedWait.style.color = activeColor;
   }
 
   function updateDisplay() {
@@ -955,6 +961,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentCall = data.currentCall;
     tickets = data.tickets || [];
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
+    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
     
     updateDisplay();
   });
@@ -965,6 +972,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentCall = data.currentCall;
     tickets = data.tickets || [];
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
+    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
     
     updateDisplay();
   });

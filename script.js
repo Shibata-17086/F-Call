@@ -16,11 +16,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const prioritySelect = document.getElementById('priority-select');
   const estimatedTimeDisplay = document.getElementById('estimated-time');
   const queuePositionDisplay = document.getElementById('queue-position');
+  const waitingTimeRow = waitingTimeDisplay ? waitingTimeDisplay.closest('.queue-info') : null;
+  const estimatedTimeRow = estimatedTimeDisplay ? estimatedTimeDisplay.closest('.status-item') : null;
 
   let tickets = [];
   let issuedHistory = [];
   let statistics = { averageWaitTime: 5 };
   let lastIssuedNumber = null;
+  let showEstimatedWaitTime = true;
 
   function updateDisplays() {
     waitingCountDisplay.textContent = tickets.length;
@@ -54,7 +57,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     
-    waitingTimeDisplay.textContent = `約${estimatedWaitTime}分`;
+    if (waitingTimeRow) {
+      waitingTimeRow.style.display = showEstimatedWaitTime ? 'flex' : 'none';
+    }
+    waitingTimeDisplay.textContent = showEstimatedWaitTime
+      ? `約${estimatedWaitTime}分`
+      : '';
     
     // 最新の発券番号を表示
     if (lastIssuedNumber) {
@@ -66,16 +74,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // 発券したチケットの予想待ち時間と順番を表示
+    if (estimatedTimeRow) {
+      estimatedTimeRow.style.display = showEstimatedWaitTime ? 'block' : 'none';
+    }
+
     if (lastIssuedNumber && estimatedTimeDisplay && queuePositionDisplay) {
       const myTicket = tickets.find(t => t.number === lastIssuedNumber);
       if (myTicket) {
-        estimatedTimeDisplay.textContent = `約${myTicket.estimatedWaitTime}分`;
+        estimatedTimeDisplay.textContent = showEstimatedWaitTime && myTicket.estimatedWaitTime !== undefined
+          ? `約${myTicket.estimatedWaitTime}分`
+          : '';
         const position = tickets.findIndex(t => t.number === lastIssuedNumber) + 1;
         queuePositionDisplay.textContent = `${position}番目`;
       } else {
-        estimatedTimeDisplay.textContent = '呼び出し済み';
+        estimatedTimeDisplay.textContent = showEstimatedWaitTime ? '呼び出し済み' : '';
         queuePositionDisplay.textContent = '---';
       }
+    } else if (estimatedTimeDisplay) {
+      estimatedTimeDisplay.textContent = showEstimatedWaitTime ? '---' : '';
     }
   }
 
@@ -83,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tickets = Array.isArray(data.tickets) ? data.tickets : [];
     issuedHistory = Array.isArray(data.issuedHistory) ? data.issuedHistory : [];
     statistics = data.statistics || { averageWaitTime: 5 };
+    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
     updateDisplays();
   });
 
@@ -90,6 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tickets = Array.isArray(data.tickets) ? data.tickets : [];
     issuedHistory = Array.isArray(data.issuedHistory) ? data.issuedHistory : [];
     statistics = data.statistics || { averageWaitTime: 5 };
+    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
     updateDisplays();
   });
 

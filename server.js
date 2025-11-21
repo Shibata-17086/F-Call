@@ -129,6 +129,9 @@ let statistics = {
   peakHours: []
 };
 
+// 表示設定
+let showEstimatedWaitTime = true;
+
 function getCurrentDate() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -257,7 +260,8 @@ function sendUpdate() {
     seats,
     statistics,
     currentDate,
-    networkInfo
+    networkInfo,
+    showEstimatedWaitTime
   });
 }
 
@@ -280,7 +284,8 @@ io.on('connection', (socket) => {
       seats,
       statistics,
       currentDate,
-      networkInfo
+      networkInfo,
+      showEstimatedWaitTime
     });
     
     console.log(`📤 初期データを送信しました: ${socket.id}`);
@@ -574,6 +579,14 @@ io.on('connection', (socket) => {
     if (typeof minutes === 'number' && minutes > 0) {
       waitMinutesPerPerson = minutes;
       statistics.averageWaitTime = minutes;
+      sendUpdate();
+    }
+  });
+
+  socket.on('admin:setEstimatedWaitVisibility', (visible) => {
+    const nextValue = Boolean(visible);
+    if (showEstimatedWaitTime !== nextValue) {
+      showEstimatedWaitTime = nextValue;
       sendUpdate();
     }
   });

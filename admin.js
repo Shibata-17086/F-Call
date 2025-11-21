@@ -15,6 +15,7 @@ const historyList = document.getElementById('historyList');
 const currentNumber = document.getElementById('currentNumber');
 const waitMinutesInput = document.getElementById('waitMinutesInput');
 const setWaitMinutesBtn = document.getElementById('setWaitMinutesBtn');
+const toggleEstimatedWait = document.getElementById('toggleEstimatedWait');
 const clearTickets = document.getElementById('clearTickets');
 const clearIssuedHistory = document.getElementById('clearIssuedHistory');
 const clearHistory = document.getElementById('clearHistory');
@@ -52,6 +53,7 @@ let waitMinutesPerPerson = 5;
 let statistics = { averageWaitTime: 5, averageSessionTime: 10 };
 let currentDate = '';
 let networkInfo = [];
+let showEstimatedWaitTime = true;
 
 function updateDisplay() {
   // ネットワーク情報の更新
@@ -247,6 +249,10 @@ function updateDisplay() {
   // 待ち時間設定
   waitMinutesInput.value = waitMinutesPerPerson;
 
+  if (toggleEstimatedWait && toggleEstimatedWait.checked !== showEstimatedWaitTime) {
+    toggleEstimatedWait.checked = showEstimatedWaitTime;
+  }
+
   console.log('admin update', tickets, issuedHistory);
 }
 
@@ -379,6 +385,7 @@ socket.on('init', (data) => {
   statistics = data.statistics || { averageWaitTime: 5, averageSessionTime: 10 };
   currentDate = data.currentDate || '';
   networkInfo = data.networkInfo || [];
+  showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
   updateDisplay();
 });
 
@@ -392,6 +399,7 @@ socket.on('update', (data) => {
   statistics = data.statistics || { averageWaitTime: 5, averageSessionTime: 10 };
   currentDate = data.currentDate || '';
   networkInfo = data.networkInfo || [];
+  showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
   updateDisplay();
 });
 
@@ -442,6 +450,12 @@ setWaitMinutesBtn.onclick = () => {
   }
   socket.emit('admin:setWaitMinutes', minutes);
 };
+
+if (toggleEstimatedWait) {
+  toggleEstimatedWait.onchange = () => {
+    socket.emit('admin:setEstimatedWaitVisibility', toggleEstimatedWait.checked);
+  };
+}
 
 // 発券中番号をクリア
 clearTickets.onclick = () => {
