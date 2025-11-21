@@ -103,9 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         completeBtn.className = 'btn primary';
         completeBtn.style.cssText = 'margin-top: 0.5rem; font-size: 0.8rem; padding: 0.3rem 0.8rem;';
         completeBtn.onclick = () => {
-          if (confirm(`${seat.name}の診察を完了しますか？`)) {
-            socket.emit('completeSession', { seatId: seat.id });
-          }
+          socket.emit('completeSession', { seatId: seat.id });
         };
         seatDiv.appendChild(completeBtn);
       }
