@@ -404,7 +404,7 @@ let waitMinutesPerPerson = 5;
 let statistics = { averageWaitTime: 5, averageSessionTime: 10 };
 let currentDate = '';
 let networkInfo = [];
-let showEstimatedWaitTime = true;
+let showEstimatedWaitTime = false;  // 初期値: 表示しない
 
 function updateDisplay() {
   // ネットワーク情報の更新
@@ -762,7 +762,7 @@ socket.on('init', (data) => {
   statistics = data.statistics || { averageWaitTime: 5, averageSessionTime: 10 };
   currentDate = data.currentDate || '';
   networkInfo = data.networkInfo || [];
-  showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
+  showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
   
   // 初期化時に単位ドロップダウンを更新
   if (newSeatUnit) {
@@ -782,7 +782,7 @@ socket.on('update', (data) => {
   statistics = data.statistics || { averageWaitTime: 5, averageSessionTime: 10 };
   currentDate = data.currentDate || '';
   networkInfo = data.networkInfo || [];
-  showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
+  showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
   updateDisplay();
 });
 

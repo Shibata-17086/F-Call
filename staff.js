@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let calledHistory = [];
   let currentCall = null;
   let seats = [];
-  let showEstimatedWaitTime = true;
+  let showEstimatedWaitTime = false;  // 初期値: 表示しない
 
   // デバッグ情報を表示
   function showDebug(message) {
@@ -365,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
     calledHistory = data.calledHistory || [];
     currentCall = data.currentCall;
     seats = data.seats || [];
-    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
+    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
     updateDisplay();
   });
 
@@ -376,7 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
     calledHistory = data.calledHistory || [];
     currentCall = data.currentCall;
     seats = data.seats || [];
-    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
+    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
     updateDisplay();
   });
 

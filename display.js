@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentCall = null;
   let tickets = [];
   let waitMinutesPerPerson = 5;
-  let showEstimatedWaitTime = true;
+  let showEstimatedWaitTime = false;  // 初期値: 表示しない
   let lastCallNumber = null;
   let lastCallSeat = null;
   
@@ -1026,7 +1026,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentCall = data.currentCall;
     tickets = data.tickets || [];
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
-    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
+    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
     updateVoiceSettings(data.voiceSettings);
     updateDisplay();
   });
@@ -1036,7 +1036,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentCall = data.currentCall;
     tickets = data.tickets || [];
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
-    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
+    showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
     updateVoiceSettings(data.voiceSettings);
     updateDisplay();
   });

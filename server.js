@@ -130,7 +130,7 @@ let statistics = {
 };
 
 // 表示設定
-let showEstimatedWaitTime = true;
+let showEstimatedWaitTime = false;  // 初期値: 表示しない
 
 // 音声設定（グローバル）
 let voiceSettings = {
