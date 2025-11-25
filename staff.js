@@ -322,8 +322,8 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelBtn.style.marginTop = '0.5rem';
         cancelBtn.onclick = () => {
           const confirmMessage = isCurrentlyActive 
-            ? `現在呼び出し中の番号${item.number}（${item.seat ? item.seat.name : ''}）を取り消しますか？\n\n※ 座席は空席に戻りますが、患者は待ち列には戻りません。`
-            : `番号${item.number}（${item.seat ? item.seat.name : ''}）の呼び出しをキャンセルしますか？\n\n※ 座席は空席に戻りますが、患者は待ち列には戻りません。`;
+            ? `現在呼び出し中の番号${item.number}（${item.seat ? item.seat.name : ''}）を取り消しますか？\n\n※ 座席は空席に戻り、番号は発券中リストに戻ります。`
+            : `番号${item.number}（${item.seat ? item.seat.name : ''}）の呼び出しをキャンセルしますか？\n\n※ 座席は空席に戻り、番号は発券中リストに戻ります。`;
           
           if (confirm(confirmMessage)) {
             if (isCurrentlyActive) {

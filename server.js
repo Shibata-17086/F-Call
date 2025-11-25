@@ -710,9 +710,47 @@ io.on('connection', (socket) => {
   // 呼び出しキャンセル
   socket.on('cancelCall', () => {
     if (currentCall && currentCall.seat) {
+      const cancelledNumber = currentCall.number;
       updateSeatStatus(currentCall.seat.id, 'available');
       
-      // 履歴にキャンセルマークを追加（現在の呼び出しがある場合）
+      // 履歴から該当項目を検索
+      const historyItem = calledHistory.find(item => 
+        item.number === currentCall.number && 
+        item.seat && item.seat.id === currentCall.seat.id &&
+        !item.cancelled
+      );
+      
+      // 発券履歴から元の情報を取得
+      const originalTicket = issuedHistory.find(t => t.number === cancelledNumber);
+      
+      if (originalTicket) {
+        // チケットを発券中リストに戻す（優先度を保持）
+        const ticketToRestore = {
+          number: originalTicket.number,
+          time: originalTicket.time,
+          date: originalTicket.date,
+          priority: originalTicket.priority || 'normal',
+          estimatedWaitTime: calculateWaitTime(tickets.length + 1),
+          issueTime: originalTicket.issueTime || new Date()
+        };
+        
+        // 優先度に応じて適切な位置に挿入
+        if (ticketToRestore.priority === 'urgent') {
+          tickets.unshift(ticketToRestore);
+        } else if (ticketToRestore.priority === 'appointment') {
+          const urgentCount = tickets.filter(t => t.priority === 'urgent').length;
+          tickets.splice(urgentCount, 0, ticketToRestore);
+        } else {
+          tickets.push(ticketToRestore);
+        }
+        
+        // 待ち時間を再計算
+        tickets.forEach((t, index) => {
+          t.estimatedWaitTime = calculateWaitTime(index + 1);
+        });
+      }
+      
+      // 履歴から該当項目を削除（発券中リストに戻すため）
       const historyIndex = calledHistory.findIndex(item => 
         item.number === currentCall.number && 
         item.seat && item.seat.id === currentCall.seat.id &&
@@ -720,11 +758,10 @@ io.on('connection', (socket) => {
       );
       
       if (historyIndex >= 0) {
-        calledHistory[historyIndex].cancelled = true;
-        calledHistory[historyIndex].cancelTime = formatTime(new Date());
+        calledHistory.splice(historyIndex, 1);
       }
       
-      console.log(`呼び出しキャンセル: 番号${currentCall.number} (${currentCall.seat.name})`);
+      console.log(`呼び出しキャンセル: 番号${currentCall.number} (${currentCall.seat.name}) → 発券中リストに戻しました`);
     }
     currentCall = null;
     sendUpdate();
@@ -746,25 +783,71 @@ io.on('connection', (socket) => {
       currentCall = null;
     }
     
-    // 履歴にキャンセルマークを追加
-    if (historyIndex >= 0 && historyIndex < calledHistory.length) {
-      calledHistory[historyIndex].cancelled = true;
-      calledHistory[historyIndex].cancelTime = formatTime(new Date());
-    }
+    // 発券履歴から元の情報を取得
+    const originalTicket = issuedHistory.find(t => t.number === number);
     
-    // 残りの待ち時間を再計算
-    tickets.forEach((t, index) => {
-      t.estimatedWaitTime = calculateWaitTime(index + 1);
-    });
+    // 履歴から該当項目を検索
+    const historyItem = historyIndex >= 0 && historyIndex < calledHistory.length 
+      ? calledHistory[historyIndex] 
+      : calledHistory.find(item => item.number === number && item.seat && item.seat.id === seatId && !item.cancelled);
+    
+    if (originalTicket && historyItem && !historyItem.cancelled) {
+      // チケットを発券中リストに戻す（優先度を保持）
+      const ticketToRestore = {
+        number: originalTicket.number,
+        time: originalTicket.time,
+        date: originalTicket.date,
+        priority: originalTicket.priority || historyItem.priority || 'normal',
+        estimatedWaitTime: calculateWaitTime(tickets.length + 1),
+        issueTime: originalTicket.issueTime || new Date()
+      };
+      
+      // 優先度に応じて適切な位置に挿入
+      if (ticketToRestore.priority === 'urgent') {
+        tickets.unshift(ticketToRestore);
+      } else if (ticketToRestore.priority === 'appointment') {
+        const urgentCount = tickets.filter(t => t.priority === 'urgent').length;
+        tickets.splice(urgentCount, 0, ticketToRestore);
+      } else {
+        tickets.push(ticketToRestore);
+      }
+      
+      // 待ち時間を再計算
+      tickets.forEach((t, index) => {
+        t.estimatedWaitTime = calculateWaitTime(index + 1);
+      });
+      
+      // 履歴から該当項目を削除（発券中リストに戻すため）
+      const actualHistoryIndex = calledHistory.findIndex(item => 
+        item.number === number && 
+        item.seat && item.seat.id === seatId &&
+        !item.cancelled
+      );
+      
+      if (actualHistoryIndex >= 0) {
+        calledHistory.splice(actualHistoryIndex, 1);
+      }
+    } else {
+      // 発券履歴が見つからない場合は従来通りキャンセルマークのみ
+      if (historyIndex >= 0 && historyIndex < calledHistory.length) {
+        calledHistory[historyIndex].cancelled = true;
+        calledHistory[historyIndex].cancelTime = formatTime(new Date());
+      }
+      
+      // 残りの待ち時間を再計算
+      tickets.forEach((t, index) => {
+        t.estimatedWaitTime = calculateWaitTime(index + 1);
+      });
+    }
     
     // キャンセル成功をクライアントに通知
     socket.emit('cancelSuccess', { 
       number, 
       seat: seat.name,
-      message: `番号${number}（${seat.name}）の呼び出しをキャンセルしました`
+      message: `番号${number}（${seat.name}）の呼び出しをキャンセルし、発券中リストに戻しました`
     });
     
-    console.log(`履歴からキャンセル: 番号${number} → ${seat.name}`);
+    console.log(`履歴からキャンセル: 番号${number} → ${seat.name} → 発券中リストに戻しました`);
     sendUpdate();
   });
 
