@@ -2,38 +2,286 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>F-Call スタッフ用画面</title>
   <link rel="stylesheet" href="styles.css">
   <style>
-    body { background: #f0f4f8; }
-    .staff-container { max-width: 900px; margin: 2rem auto; }
-    .control-panel { background: #fff; padding: 2rem; border-radius: 10px; margin-bottom: 2rem; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .number-list, .history-list { justify-content: center; }
-    .number-item { min-width: 200px; padding: 1.5rem; text-align: center; }
-    .current-call-display { font-size: 2.5rem; font-weight: bold; color: #1565c0; margin-bottom: 1.5rem; }
-    .debug-panel { margin-top: 2rem; padding: 1rem; background: #f1f1f1; border-radius: 5px; }
-    .debug-text { font-family: monospace; font-size: 0.9rem; margin-bottom: 0.5rem; }
+    /* ===== display.html基準のデザイン ===== */
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    body { 
+      background: #f5f9fc; 
+      color: #333;
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    
+    .staff-container { 
+      max-width: 100%;
+      height: 100vh;
+      margin: 0 auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      gap: 12px;
+    }
+    
+    .staff-container h1 {
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: 500;
+      color: #2c80b9;
+      margin: 0;
+      padding: 12px 16px;
+      background: #fff;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      border: 1px solid rgba(0,0,0,0.05);
+      flex-shrink: 0;
+    }
+    
+    /* メインコンテンツ - 3カラム */
+    .main-content {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      grid-template-rows: auto 1fr;
+      gap: 12px;
+      flex: 1;
+      min-height: 0;
+    }
+    
+    /* セクション共通 */
+    .section {
+      background: #fff;
+      border-radius: 0.5rem;
+      padding: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      border: 1px solid rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    
+    .section h2 {
+      font-size: 1rem;
+      font-weight: 400;
+      color: #2c80b9;
+      margin: 0 0 10px 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+      flex-shrink: 0;
+    }
+    
+    /* 発券セクション */
+    #ticketSection {
+      grid-column: 1 / 3;
+      grid-row: 2;
+    }
+    
+    /* 履歴セクション */
+    #historySection {
+      grid-column: 3;
+      grid-row: 1 / 3;
+      width: 300px;
+      max-width: 300px;
+    }
+    
+    /* 番号リスト */
+    .number-list { 
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 10px;
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+      padding: 4px;
+      align-content: start;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    /* 履歴リスト */
+    .history-list { 
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+      padding: 4px;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    /* 番号カード */
+    .number-item { 
+      background: #f5f9fc;
+      border: 1px solid rgba(0,0,0,0.05);
+      border-radius: 0.5rem;
+      padding: 10px;
+      text-align: center;
+    }
+    
+    .number-item:active {
+      transform: scale(0.98);
+    }
+    
+    /* 履歴アイテム */
+    .history-item {
+      background: #f5f9fc;
+      border: 1px solid rgba(0,0,0,0.05);
+      border-radius: 0.5rem;
+      padding: 10px 12px;
+      flex-shrink: 0;
+    }
+    
+    .history-item:active {
+      transform: scale(0.98);
+    }
+    
+    /* ===== ボタン ===== */
+    .btn {
+      min-height: 52px;
+      padding: 12px 20px;
+      font-size: 1.1rem;
+      font-weight: 500;
+      border-radius: 0.5rem;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    
+    .btn:active {
+      transform: scale(0.96);
+    }
+    
+    .btn.primary {
+      background: #2c80b9;
+      color: white;
+    }
+    
+    .btn.danger {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .btn.success {
+      background: #28a745;
+      color: white;
+    }
+    
+    /* ===== セレクトボックス ===== */
+    select {
+      height: 48px;
+      padding: 10px 32px 10px 14px;
+      font-size: 1rem;
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 0.5rem;
+      background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 10px center;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    
+    select:disabled {
+      background-color: #f0f0f0;
+      color: #999;
+    }
+    
+    /* ===== 空メッセージ ===== */
+    .empty-message {
+      padding: 24px;
+      text-align: center;
+      color: #888;
+      font-size: 1rem;
+    }
+    
+    /* ===== リセットボタン ===== */
+    .reset-section {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+    }
+    
+    .reset-section .btn.danger {
+      min-height: 44px;
+      font-size: 0.9rem;
+      padding: 10px 16px;
+    }
+    
+    /* ===== デバッグパネル ===== */
+    .debug-panel { 
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 12px; 
+      background: rgba(0,0,0,0.9); 
+      color: #0f0;
+      max-height: 120px;
+      overflow-y: auto;
+      z-index: 1000;
+    }
+    
+    .debug-text { 
+      font-family: monospace; 
+      font-size: 0.75rem; 
+      line-height: 1.3;
+    }
+    
+    /* ===== 座席状況 ===== */
+    #seat-status {
+      grid-column: 1 / 3;
+      grid-row: 1;
+      padding: 10px 14px !important;
+      flex-direction: row !important;
+      align-items: center;
+      gap: 14px;
+    }
+    
+    #seat-status h3 {
+      font-size: 1rem;
+      font-weight: 400;
+      color: #2c80b9;
+      margin: 0;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
-  <div class="staff-container">
-    <h1>F-Call スタッフ用画面</h1>
-    <div class="section">
-      <h2>発券中の番号（座席を選んで呼び出し）</h2>
-      <div id="ticketList" class="number-list"></div>
+  <div class="staff-container" style="position: relative;">
+    <h1>F-Call スタッフ画面</h1>
+    
+    <div class="reset-section">
+      <button id="resetAll" class="btn danger">リセット</button>
     </div>
-    <div class="section">
-      <h2>呼び出し履歴</h2>
-      <div id="historyList" class="history-list"></div>
+    
+    <div class="main-content">
+      <!-- 座席状況はJSで動的にmain-contentの先頭に挿入される -->
+      
+      <div class="section" id="ticketSection">
+        <h2>発券中の番号</h2>
+        <div id="ticketList" class="number-list"></div>
+      </div>
+      
+      <div class="section" id="historySection">
+        <h2>呼び出し履歴</h2>
+        <div id="historyList" class="history-list"></div>
+      </div>
     </div>
-    <div class="section" style="text-align: center;">
-      <button id="resetAll" class="btn danger">サーバー全体をリセット</button>
-    </div>
+    
     <div id="debugPanel" class="debug-panel" style="display: none;">
-      <h3>デバッグ情報</h3>
       <div id="debugInfo" class="debug-text"></div>
-      <button onclick="document.getElementById('debugPanel').style.display='none'" class="btn">閉じる</button>
+      <button onclick="document.getElementById('debugPanel').style.display='none'" class="btn" style="margin-top:8px;min-height:32px;">閉じる</button>
     </div>
   </div>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>

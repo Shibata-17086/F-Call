@@ -84,45 +84,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const seatStatusContainer = document.getElementById('seat-status') || createSeatStatusContainer();
     seatStatusContainer.innerHTML = '<h3>座席状況</h3>';
     
+    // 座席を横並びで表示
+    const seatGrid = document.createElement('div');
+    seatGrid.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap; align-items:center;';
+    
     seats.forEach(seat => {
       const seatDiv = document.createElement('div');
-      seatDiv.className = 'seat-status-item';
       seatDiv.style.cssText = `
-        display: inline-block;
-        margin: 0.5rem;
-        padding: 1rem;
-        border-radius: 8px;
-        min-width: 120px;
-        text-align: center;
-        font-weight: bold;
-        ${seat.status === 'busy' 
-          ? 'background: #ffebee; border: 2px solid #f44336; color: #c62828;' 
-          : 'background: #e8f5e8; border: 2px solid #4caf50; color: #2e7d32;'
-        }
+        display:flex; align-items:center; gap:10px; padding:10px 16px; border-radius:0.5rem; font-size:1rem; font-weight:500;
+        background:#fff; border:1px solid rgba(0,0,0,0.05); box-shadow:0 2px 5px rgba(0,0,0,0.05);
+        ${seat.status === 'busy' ? 'border-left:4px solid #dc3545;' : 'border-left:4px solid #28a745;'}
       `;
       
-      const statusText = seat.status === 'busy' ? '使用中' : '空席';
-      const patientInfo = seat.currentPatient ? `\n患者: ${seat.currentPatient}番` : '';
+      const patient = seat.currentPatient ? ` (${seat.currentPatient}番)` : '';
+      seatDiv.innerHTML = `<span style="color:#2c80b9; font-weight:600;">${seat.name}</span><span style="color:#666;">${patient}</span>`;
       
-      seatDiv.innerHTML = `
-        <div style="font-size: 1.1rem;">${seat.name}</div>
-        <div style="font-size: 0.9rem; margin-top: 0.5rem;">${statusText}${patientInfo}</div>
-      `;
-      
-      // 診察完了ボタン（使用中の座席のみ）
       if (seat.status === 'busy') {
-        const completeBtn = document.createElement('button');
-        completeBtn.textContent = '診察完了';
-        completeBtn.className = 'btn primary';
-        completeBtn.style.cssText = 'margin-top: 0.5rem; font-size: 0.8rem; padding: 0.3rem 0.8rem;';
-        completeBtn.onclick = () => {
-          socket.emit('completeSession', { seatId: seat.id });
-        };
-        seatDiv.appendChild(completeBtn);
+        const btn = document.createElement('button');
+        btn.innerHTML = '完了';
+        btn.style.cssText = 'min-height:44px; padding:8px 16px; font-size:1rem; font-weight:500; border-radius:0.5rem; border:none; background:#28a745; color:white; cursor:pointer;';
+        btn.onclick = () => socket.emit('completeSession', { seatId: seat.id });
+        seatDiv.appendChild(btn);
+      } else {
+        const statusSpan = document.createElement('span');
+        statusSpan.style.cssText = 'color:#28a745; font-size:0.9rem;';
+        statusSpan.textContent = '空席';
+        seatDiv.appendChild(statusSpan);
       }
       
-      seatStatusContainer.appendChild(seatDiv);
+      seatGrid.appendChild(seatDiv);
     });
+    
+    seatStatusContainer.appendChild(seatGrid);
 
     // 発券中リスト
     ticketList.innerHTML = '';
@@ -146,39 +139,28 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       sortedTickets.forEach((ticket, index) => {
-        // 座席選択ドロップダウン＋呼び出しボタン
         const div = document.createElement('div');
         div.className = 'number-item';
-        div.style.cssText = `
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 1rem;
-          min-width: 200px;
-          ${getPriorityStyle(ticket.priority)}
-        `;
+        div.style.cssText = `display:flex; flex-direction:column; gap:10px; padding:14px; border-radius:0.5rem; box-shadow:0 2px 5px rgba(0,0,0,0.05); ${getPriorityStyle(ticket.priority)}`;
 
         const priorityLabel = getPriorityLabel(ticket.priority);
-        const waitTimeMarkup = showEstimatedWaitTime && ticket.estimatedWaitTime
-          ? `<div style="font-size:0.8rem;color:#666;">予想: ${ticket.estimatedWaitTime}分</div>`
-          : '';
         
-        const numDiv = document.createElement('div');
-        numDiv.innerHTML = `
-          <div style="font-size:1.5rem;font-weight:bold;">${ticket.number}</div>
-          <div style="font-size:0.9rem;color:#888;">${ticket.time}</div>
-          <div style="font-size:0.8rem;font-weight:bold;color:#1565c0;">${priorityLabel}</div>
-          ${waitTimeMarkup}
+        // 番号と情報
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex; justify-content:space-between; align-items:center;';
+        header.innerHTML = `
+          <span style="font-size:2rem; font-weight:bold; color:#2c80b9;">${ticket.number}</span>
+          <span style="font-size:0.85rem; color:#888;">${priorityLabel}</span>
         `;
-        numDiv.style.marginBottom = '0.5rem';
-        numDiv.style.textAlign = 'center';
+        div.appendChild(header);
 
+        // 座席選択（スキップオプション含む）
         const seatSelect = document.createElement('select');
-        seatSelect.style.cssText = 'padding: 0.5rem; width: 100%; margin-bottom: 0.5rem;';
+        seatSelect.style.cssText = 'width:100%;';
         
-        // 利用可能な座席のみ表示
         const availableSeats = seats.filter(seat => seat.status === 'available');
+        
+        // 座席オプション
         if (availableSeats.length > 0) {
           availableSeats.forEach(seat => {
             const opt = document.createElement('option');
@@ -189,49 +171,50 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           const opt = document.createElement('option');
           opt.value = '';
-          opt.textContent = '-- 利用可能な座席なし --';
+          opt.textContent = '座席なし';
           seatSelect.appendChild(opt);
-          seatSelect.disabled = true;
-        }
-
-        const callBtn = document.createElement('button');
-        callBtn.textContent = '呼び出し';
-        callBtn.className = 'btn primary';
-        callBtn.style.cssText = 'width: 100%; padding: 0.5rem;';
-        
-        if (availableSeats.length === 0) {
-          callBtn.disabled = true;
         }
         
-        callBtn.onclick = () => {
-          const seatId = seatSelect.value;
-          if (!seatId) {
-            alert('利用可能な座席がありません');
-            return;
-          }
-          console.log('呼び出し：番号=', ticket.number, '座席ID=', seatId);
-          socket.emit('callNumber', { number: ticket.number, seatId });
-        };
-
-        div.appendChild(numDiv);
+        // スキップオプションを追加
+        const skipOpt = document.createElement('option');
+        skipOpt.value = '__skip__';
+        skipOpt.textContent = '── スキップ ──';
+        skipOpt.style.color = '#888';
+        seatSelect.appendChild(skipOpt);
+        
         div.appendChild(seatSelect);
-        const buttonRow = document.createElement('div');
-        buttonRow.style.cssText = 'display:flex; gap:0.5rem; width:100%;';
-        callBtn.style.flex = '1';
-        buttonRow.appendChild(callBtn);
 
-        const skipBtn = document.createElement('button');
-        skipBtn.textContent = 'スキップ';
-        skipBtn.className = 'btn danger';
-        skipBtn.style.cssText = 'flex:1; padding:0.5rem;';
-        skipBtn.onclick = () => {
-          if (confirm(`番号${ticket.number}をスキップしますか？\n待合室表示には呼び出しとして表示されません。`)) {
-            socket.emit('skipTicket', { number: ticket.number });
+        // 実行ボタン
+        const actionBtn = document.createElement('button');
+        actionBtn.innerHTML = '呼出';
+        actionBtn.style.cssText = 'width:100%; min-height:52px; font-size:1.1rem; font-weight:500; border-radius:0.5rem; border:none; background:#4ca3d8; color:white; cursor:pointer;';
+        
+        // 選択変更時にボタンを更新
+        seatSelect.onchange = () => {
+          if (seatSelect.value === '__skip__') {
+            actionBtn.innerHTML = 'スキップ';
+            actionBtn.style.background = '#ffc107';
+            actionBtn.style.color = '#333';
+          } else {
+            actionBtn.innerHTML = '呼出';
+            actionBtn.style.background = seatSelect.value ? '#4ca3d8' : '#ccc';
+            actionBtn.style.color = 'white';
           }
         };
-        buttonRow.appendChild(skipBtn);
+        
+        actionBtn.onclick = () => {
+          if (seatSelect.value === '__skip__') {
+            if (confirm(`${ticket.number}番をスキップしますか？`)) {
+              socket.emit('skipTicket', { number: ticket.number });
+            }
+          } else if (seatSelect.value) {
+            socket.emit('callNumber', { number: ticket.number, seatId: seatSelect.value });
+          } else {
+            alert('座席を選択してください');
+          }
+        };
 
-        div.appendChild(buttonRow);
+        div.appendChild(actionBtn);
         ticketList.appendChild(div);
       });
     }
@@ -289,48 +272,46 @@ document.addEventListener('DOMContentLoaded', () => {
       const div = document.createElement('div');
       div.className = 'history-item';
       
-      // 現在呼び出し中の項目のスタイル
-      if (item.isCurrentCall || (currentCall && currentCall.number === item.number && !item.cancelled)) {
-        div.style.cssText += 'border: 2px solid #4caf50; background: #e8f5e8; animation: pulse 2s infinite;';
-      }
-      // キャンセル済みの場合のスタイル
-      else if (item.cancelled) {
-        div.style.cssText += 'opacity: 0.6; background: #f5f5f5; border-left: 4px solid #ff5722;';
-      }
+      const isActive = item.isCurrentCall || (currentCall && currentCall.number === item.number && !item.cancelled);
       
-      const waitTimeInfo = item.actualWaitTime ? `実際の待ち時間: ${item.actualWaitTime}分` : 
-                          (item.isCurrentCall || (currentCall && currentCall.number === item.number && !item.cancelled) ? '診察中' : '');
-      const cancelInfo = item.cancelled ? `<div style="font-size:0.8rem;color:#ff5722;font-weight:bold;">❌ キャンセル済み (${item.cancelTime})</div>` : '';
-      const currentCallInfo = (item.isCurrentCall || (currentCall && currentCall.number === item.number && !item.cancelled)) ? 
-                             `<div style="font-size:0.8rem;color:#4caf50;font-weight:bold;">🔥 現在呼び出し中</div>` : '';
-      
-      div.innerHTML = `
-        <div style="font-size:1.2rem;font-weight:bold;">${item.number}</div>
-        <div style="font-size:0.9rem;color:#888;">${item.time ? item.time : ''}</div>
-        <div style="font-size:0.9rem;color:#1565c0;">${item.seat ? item.seat.name : ''}</div>
-        <div style="font-size:0.8rem;color:#666;">${waitTimeInfo}</div>
-        ${cancelInfo}
-        ${currentCallInfo}
+      // display.htmlと同じスタイル
+      div.style.cssText = `
+        display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; border-radius:0.5rem;
+        background:#fff; box-shadow:0 2px 5px rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.05);
+        ${isActive ? 'border-color:#ffc107; background:#fff3cd;' : 
+          item.cancelled ? 'opacity:0.5;' : ''}
       `;
       
-      // キャンセルボタン（キャンセル済みでない場合のみ表示）
+      // 左: 番号と情報
+      const info = document.createElement('div');
+      info.style.cssText = 'display:flex; align-items:center; gap:14px;';
+      
+      const numSpan = document.createElement('span');
+      numSpan.style.cssText = 'font-size:1.8rem; font-weight:bold; color:#2c80b9; min-width:44px;';
+      numSpan.textContent = item.number;
+      info.appendChild(numSpan);
+      
+      const detail = document.createElement('div');
+      detail.style.cssText = 'font-size:0.95rem; color:#666; line-height:1.4;';
+      const seatName = item.seat ? item.seat.name : '';
+      const status = isActive ? '<span style="color:#28a745;font-weight:500;">呼出中</span>' : 
+                     item.cancelled ? '<span style="color:#dc3545;">取消済</span>' : 
+                     (item.actualWaitTime ? `${item.actualWaitTime}分` : '');
+      detail.innerHTML = `${seatName}<br>${status}`;
+      info.appendChild(detail);
+      
+      div.appendChild(info);
+      
+      // 右: キャンセルボタン
       if (!item.cancelled) {
-        const isCurrentlyActive = item.isCurrentCall || (currentCall && currentCall.number === item.number);
         const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = isCurrentlyActive ? '呼び出し取り消し' : '呼び出しキャンセル';
-        cancelBtn.className = 'btn danger';
-        cancelBtn.style.marginTop = '0.5rem';
+        cancelBtn.innerHTML = '取消';
+        cancelBtn.style.cssText = 'min-height:48px; padding:10px 18px; font-size:1rem; font-weight:500; border-radius:0.5rem; border:none; background:#dc3545; color:white; cursor:pointer;';
         cancelBtn.onclick = () => {
-          const confirmMessage = isCurrentlyActive 
-            ? `現在呼び出し中の番号${item.number}（${item.seat ? item.seat.name : ''}）を取り消しますか？\n\n※ 座席は空席に戻り、番号は発券中リストに戻ります。`
-            : `番号${item.number}（${item.seat ? item.seat.name : ''}）の呼び出しをキャンセルしますか？\n\n※ 座席は空席に戻り、番号は発券中リストに戻ります。`;
-          
-          if (confirm(confirmMessage)) {
-            if (isCurrentlyActive) {
-              // 現在の呼び出しのキャンセル
+          if (confirm(`${item.number}番を取り消しますか？`)) {
+            if (isActive) {
               socket.emit('cancelCall');
             } else {
-              // 履歴からのキャンセル（現在の呼び出しが含まれているかどうかでインデックスを調整）
               const historyIndex = currentCallInHistory ? index : index - 1;
               socket.emit('cancelHistoryCall', { 
                 number: item.number, 
@@ -350,31 +331,26 @@ document.addEventListener('DOMContentLoaded', () => {
   function createSeatStatusContainer() {
     const container = document.createElement('div');
     container.id = 'seat-status';
-    container.style.cssText = `
-      background: white;
-      padding: 1.5rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      margin-bottom: 2rem;
-    `;
+    container.className = 'section';
+    container.style.cssText = 'grid-column:1/3; grid-row:1; display:flex; align-items:center; gap:14px; padding:10px 14px;';
     
-    // スタッフ画面の最初のセクションの前に挿入
-    const firstSection = document.querySelector('.section');
-    if (firstSection) {
-      firstSection.parentNode.insertBefore(container, firstSection);
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+      mainContent.insertBefore(container, mainContent.firstChild);
     }
     
     return container;
   }
 
   function getPriorityStyle(priority) {
+    // display.htmlと同じ色を使用
     switch (priority) {
       case 'urgent':
-        return 'border: 2px solid #f44336; background: #ffebee;';
+        return 'border-left:5px solid #dc3545; background:#fff;';
       case 'appointment':
-        return 'border: 2px solid #ff9800; background: #fff3e0;';
+        return 'border-left:5px solid #ffc107; background:#fff;';
       default:
-        return 'border: 1px solid #ddd; background: #f8f9fa;';
+        return 'border-left:5px solid #28a745; background:#fff;';
     }
   }
 
