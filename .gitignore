@@ -9,6 +9,9 @@ server.log
 server.pid
 nohup.out
 
+# Runtime settings
+voice_settings.json
+
 # macOS
 .DS_Store
 .AppleDouble

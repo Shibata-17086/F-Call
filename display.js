@@ -7,6 +7,22 @@ const getServerUrl = () => {
 
 const socket = io(getServerUrl());
 
+// グローバルエラーハンドラ（ブラウザ拡張機能のエラーを無視）
+window.addEventListener('unhandledrejection', (event) => {
+  // ブラウザ拡張機能のエラーを無視
+  if (event.reason && event.reason.message && 
+      (event.reason.message.includes('Could not establish connection') ||
+       event.reason.message.includes('Receiving end does not exist') ||
+       event.reason.message.includes('Extension context invalidated'))) {
+    console.log('ℹ️ ブラウザ拡張機能のエラーを無視:', event.reason.message);
+    event.preventDefault();
+    return;
+  }
+  
+  // その他のエラーは通常通り処理
+  console.error('❌ 未処理のPromiseエラー:', event.reason);
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   const displayNumber = document.getElementById('displayNumber');
   const displaySeat = document.getElementById('displaySeat');
@@ -33,7 +49,12 @@ document.addEventListener('DOMContentLoaded', () => {
     voiceURI: '',
     rate: 0.95,
     pitch: 1.0,  // デフォルト（O-Ren以外）
-    volume: 1.0
+    volume: 1.0,
+    useVoicevox: false,  // VOICEVOX使用フラグ
+    voicevoxSpeaker: 7,  // 京町セイカ（kyoto）
+    voicevoxSpeed: 1.1,
+    voicevoxPitch: 0,  // ピッチは0が標準
+    voicevoxIntonation: 1.5  // 抑揚1.5でカスカス防止
   };
 
   // 音声再生キュー
@@ -41,6 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let isSpeaking = false;
   let audioInitialized = false;
   let audioContext = null;
+  
+  // VOICEVOX設定（F-Callサーバー経由でアクセス・CORS問題を回避）
+  const VOICEVOX_API_URL = '/api/voicevox';
 
   // 音声初期化（ユーザー操作後に実行）
   function initializeAudio() {
@@ -110,21 +134,16 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(`⚠️ 日本語音声なし。英語音声を使用: ${englishVoices[0].name}`);
           }
           
-          audioInitialized = true;
-          console.log('🎉 音声システム初期化完了！');
-          
-          // ラズベリーパイの場合は初期化後により長い待機時間
-          const waitTime = isRaspberryPi ? 2000 : 500;
-          setTimeout(() => {
-            console.log('🔊 初期化テスト音声を再生...');
+          if (!audioInitialized) {
+            audioInitialized = true;
+            console.log('🎉 音声システム初期化完了！');
             
-            // ラズベリーパイ用の簡単なテスト音声
-            if (isRaspberryPi) {
-              speakCallQueued('音声システム準備完了');
-            } else {
-              speakCallQueued('音声システムの初期化が完了しました');
-            }
-          }, waitTime);
+            // 初期化完了メッセージは再生しない（不要なアナウンス削減）
+            // 必要な場合は以下のコメントを解除:
+            // setTimeout(() => {
+            //   speakCallQueued('音声システムの初期化が完了しました');
+            // }, 500);
+          }
           
         } else if (retryCount < (isRaspberryPi ? 20 : 15)) { // ラズベリーパイはより多く試行
           // 音声エンジンの読み込みを強制的に試行（ラズベリーパイ対応強化）
@@ -221,11 +240,13 @@ document.addEventListener('DOMContentLoaded', () => {
       // voiceschanged イベントリスナー（音声エンジンの非同期読み込み対応）
       if ('onvoiceschanged' in speechSynthesis) {
         speechSynthesis.onvoiceschanged = () => {
-          console.log('🔄 音声エンジンが更新されました');
-          const voices = speechSynthesis.getVoices();
-          console.log(`🎵 更新された音声数: ${voices.length}`);
-          if (!audioInitialized && voices.length > 0) {
-            loadVoicesWithRetry();
+          if (!audioInitialized) {
+            console.log('🔄 音声エンジンが更新されました');
+            const voices = speechSynthesis.getVoices();
+            console.log(`🎵 更新された音声数: ${voices.length}`);
+            if (voices.length > 0) {
+              loadVoicesWithRetry();
+            }
           }
         };
       }
@@ -447,9 +468,150 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 8000);
   }
 
+  // VOICEVOX音声合成関数（完全版・改善版）
+  async function speakWithVoicevox(text) {
+    
+    // 音声がアンロックされていない場合は自動的にアンロック
+    if (!audioUnlocked) {
+      console.log('⚠️ 音声未アンロック、自動アンロックを試行');
+      await unlockAudio();
+      console.log('✅ アンロック処理完了、再生を開始します');
+    }
+    
+    // 標準音声合成を確実に停止（重複再生防止）
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    
+    try {
+      // パラメータを取得（デフォルト値でフォールバック）
+      const speaker = Number(voiceSettings.voicevoxSpeaker) || 7;
+      const speed = Number(voiceSettings.voicevoxSpeed) || 1.1;
+      const pitch = Number(voiceSettings.voicevoxPitch) || 0;
+      const intonation = Number(voiceSettings.voicevoxIntonation) || 1.5;
+      
+      console.log('📊 使用するパラメータ:', {
+        speaker,
+        speed,
+        pitch,
+        intonation
+      });
+      
+      // 1. 音声クエリを生成
+      const queryUrl = `${VOICEVOX_API_URL}/audio_query?text=${encodeURIComponent(text)}&speaker=${speaker}`;
+      console.log('📤 音声クエリリクエスト:', queryUrl);
+      
+      const queryResponse = await fetch(queryUrl, {
+        method: 'POST'
+      });
+      
+      console.log('📥 音声クエリレスポンス:', queryResponse.status, queryResponse.statusText);
+      
+      if (!queryResponse.ok) {
+        throw new Error(`audio_query failed: ${queryResponse.status}`);
+      }
+      
+      const audioQuery = await queryResponse.json();
+      
+      console.log('📋 audio_query取得前の元データ:', {
+        speedScale: audioQuery.speedScale,
+        pitchScale: audioQuery.pitchScale,
+        intonationScale: audioQuery.intonationScale,
+        volumeScale: audioQuery.volumeScale,
+        outputSamplingRate: audioQuery.outputSamplingRate
+      });
+      
+      // 音質パラメータ設定
+      audioQuery.speedScale = speed;
+      audioQuery.pitchScale = pitch;
+      audioQuery.intonationScale = intonation;
+      audioQuery.volumeScale = 1.2;
+      audioQuery.prePhonemeLength = 0.1;
+      audioQuery.postPhonemeLength = 0.1;
+      audioQuery.outputSamplingRate = 48000;
+      audioQuery.outputStereo = true;
+      
+      console.log('✅ パラメータ設定後のaudioQuery:', {
+        speedScale: audioQuery.speedScale,
+        pitchScale: audioQuery.pitchScale,
+        intonationScale: audioQuery.intonationScale,
+        volumeScale: audioQuery.volumeScale,
+        outputSamplingRate: audioQuery.outputSamplingRate,
+        outputStereo: audioQuery.outputStereo
+      });
+      
+      // 2. 音声を合成
+      console.log('📤 synthesis APIに送信するデータ:', JSON.stringify({
+        speedScale: audioQuery.speedScale,
+        pitchScale: audioQuery.pitchScale,
+        intonationScale: audioQuery.intonationScale,
+        volumeScale: audioQuery.volumeScale,
+        outputSamplingRate: audioQuery.outputSamplingRate,
+        outputStereo: audioQuery.outputStereo
+      }, null, 2));
+      
+      const synthesisResponse = await fetch(`${VOICEVOX_API_URL}/synthesis?speaker=${speaker}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(audioQuery)
+      });
+      
+      if (!synthesisResponse.ok) {
+        throw new Error(`synthesis failed: ${synthesisResponse.status}`);
+      }
+      
+      // 3. 音声データを再生
+      const audioBlob = await synthesisResponse.blob();
+      console.log(`📦 音声サイズ: ${(audioBlob.size / 1024).toFixed(1)} KB`);
+      
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audio.volume = 1.0;
+      
+      // 再生完了時の処理
+      audio.addEventListener('ended', () => {
+        URL.revokeObjectURL(audioUrl);
+        isSpeaking = false;
+        playNextSpeech();
+      });
+      
+      // エラー時の処理
+      audio.addEventListener('error', (e) => {
+        console.error('❌ Audio再生エラー:', e);
+        URL.revokeObjectURL(audioUrl);
+        isSpeaking = false;
+        playNextSpeech();
+      });
+      
+      // 再生開始
+      await audio.play();
+      
+    } catch (error) {
+      console.error('❌ VOICEVOXエラー:', error);
+      console.error('   エラーメッセージ:', error.message);
+      console.error('   エラースタック:', error.stack);
+      console.error('   エラータイプ:', error.name);
+      
+      // VOICEVOXエラー時は標準音声にフォールバック
+      console.log('⚠️ 標準音声で再生します');
+      isSpeaking = false;
+      
+      // キューに戻して標準音声で再試行
+      speechQueue.unshift(text);
+      voiceSettings.useVoicevox = false;  // 一時的に無効化
+      playNextSpeech();
+    }
+  }
+
   // 音声再生キュー方式（改良版）
   function speakCallQueued(text) {
-    console.log('🎤 音声キューに追加:', text);
+    // 新しいVOICEVOXシステムを使用
+    if (window.VoicevoxPlayer && voiceSettings.useVoicevox) {
+      window.VoicevoxPlayer.speak(text);
+      return;
+    }
     speechQueue.push(text);
     playNextSpeech();
   }
@@ -564,289 +726,118 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function playNextSpeech() {
-    if (isSpeaking || speechQueue.length === 0) return;
+    // キューが空または既に再生中の場合は何もしない
+    if (isSpeaking || speechQueue.length === 0) {
+      return;
+    }
+    
+    // キューから次のテキストを取得
+    const text = speechQueue.shift();
+    isSpeaking = true;
+    
+    console.log(`▶️ 音声再生開始: "${text}"`);
+    
+    // VOICEVOXを使用する場合
+    if (voiceSettings.useVoicevox) {
+      speakWithVoicevox(text);
+      return;  // VOICEVOXで処理完了、標準音声は実行しない
+    }
+    
+    // 以下、標準音声合成モード
     
     // デバイス検出
     const isRaspberryPi = navigator.userAgent.includes('armv') || 
-                         navigator.userAgent.includes('Linux') && navigator.userAgent.includes('arm') ||
-                         navigator.platform.includes('Linux arm') ||
-                         window.location.hostname.includes('raspberrypi') ||
-                         navigator.userAgent.includes('X11; Linux armv');
+                         navigator.userAgent.includes('Linux') && navigator.userAgent.includes('arm');
     
-    // 音声が初期化されていない場合は初期化を試行
+    // 音声が初期化されていない場合
     if (!audioInitialized) {
-      console.log('音声システムが初期化されていません。初期化を試行します。');
+      console.log('⚠️ 音声未初期化、初期化を試行');
+      isSpeaking = false;
+      speechQueue.unshift(text);  // テキストを戻す
       initializeAudio();
-      // 初期化後に再試行（ラズベリーパイはより長い待機時間）
-      const waitTime = isRaspberryPi ? 5000 : 2000;
-      setTimeout(() => playNextSpeech(), waitTime);
+      setTimeout(() => playNextSpeech(), 2000);
       return;
     }
     
+    // speechSynthesisが利用可能かチェック
     if (!('speechSynthesis' in window)) {
-      console.error('このブラウザは音声合成をサポートしていません');
-      // ラズベリーパイの場合は代替音声システムを使用
-      if (isRaspberryPi && speechQueue.length > 0) {
-        const text = speechQueue.shift();
-        console.log('🥧 音声合成非対応のため代替音声システムを使用');
-        const numberMatch = text.match(/(\d+)/g);
-        if (numberMatch && numberMatch.length >= 1) {
-          const number = parseInt(numberMatch[0]);
-          const seatNumber = numberMatch.length > 1 ? parseInt(numberMatch[1]) : null;
-          playAlternativeAudio(number, seatNumber);
-        }
-      }
-      speechQueue = []; // キューをクリア
+      console.error('❌ 音声合成非対応');
+      isSpeaking = false;
+      speechQueue = [];
       return;
     }
     
-    // 音声エンジンが読み込まれているかチェック
+    // 音声エンジンの読み込み確認
     const voices = speechSynthesis.getVoices();
     if (voices.length === 0) {
-      console.log('⚠️ 音声エンジンがまだ読み込まれていません。');
-      
-      // ラズベリーパイで音声エンジンが5秒以上読み込まれない場合は代替システムを使用
-      if (isRaspberryPi) {
-        const currentTime = Date.now();
-        if (!window.speechSystemStartTime) {
-          window.speechSystemStartTime = currentTime;
-        }
-        
-        if (currentTime - window.speechSystemStartTime > 5000) {
-          console.log('🥧 音声エンジン読み込み時間切れ。代替音声システムを使用。');
-          const text = speechQueue.shift();
-          const numberMatch = text.match(/(\d+)/g);
-          if (numberMatch && numberMatch.length >= 1) {
-            const number = parseInt(numberMatch[0]);
-            const seatNumber = numberMatch.length > 1 ? parseInt(numberMatch[1]) : null;
-            playAlternativeAudio(number, seatNumber);
-          }
-          return;
-        }
-      }
-      
-      const retryDelay = isRaspberryPi ? 2000 : 1000;
-      setTimeout(() => playNextSpeech(), retryDelay);
+      console.log('⚠️ 音声エンジン未読み込み、再試行');
+      isSpeaking = false;
+      speechQueue.unshift(text);  // テキストを戻す
+      setTimeout(() => playNextSpeech(), 1000);
       return;
     }
     
-    isSpeaking = true;
-    const text = speechQueue.shift();
+    // 標準音声合成をキャンセル
+    speechSynthesis.cancel();
     
-    try {
-      // 音声合成をキャンセル（重複防止）
-      speechSynthesis.cancel();
+    // 少し待ってから音声作成
+    setTimeout(() => {
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang = 'ja-JP';
       
-      // ラズベリーパイでは長めの待機時間
-      const cancelWaitTime = isRaspberryPi ? 500 : 200;
+      const voices = speechSynthesis.getVoices();
+      let selectedVoice = null;
       
-      // 少し待ってから音声作成（cancel後の安定化）
-      setTimeout(() => {
-        const msg = new SpeechSynthesisUtterance(text);
-        
-        // 利用可能な音声を取得
-        const voices = speechSynthesis.getVoices();
-        console.log(`🎵 現在の音声数: ${voices.length}`);
-        
-        let selectedVoice = null;
-        
-        // ラズベリーパイ向けの音声設定最適化
-        if (isRaspberryPi) {
-          msg.lang = 'en-US'; // ラズベリーパイでは英語の方が安定
-          msg.rate = 0.6; // ラズベリーパイではより遅く
-          msg.pitch = 1.0;
-          msg.volume = 1.0;
-          console.log('🥧 ラズベリーパイ向け音声設定を適用');
-          
-          // ラズベリーパイでは英語音声を優先
-          const englishVoice = voices.find(voice => 
-            voice.lang.includes('en') || voice.name.toLowerCase().includes('english')
-          );
-          const espeakVoice = voices.find(voice => 
-            voice.name.toLowerCase().includes('espeak') || voice.name.toLowerCase().includes('mbrola')
-          );
-          
-          selectedVoice = espeakVoice || englishVoice || voices[0];
-          
-          if (selectedVoice) {
-            console.log(`🥧 ラズベリーパイ用音声選択: ${selectedVoice.name} (${selectedVoice.lang})`);
-          }
-        } else {
-          // Mac専用最適化 - 管理画面の音声設定を適用
-          msg.lang = 'ja-JP';
-          
-          // 音声エンジンの選択
-          if (voiceSettings.voiceURI && voiceSettings.voiceURI !== '') {
-            // 管理画面で特定の音声が選択されている場合
-            selectedVoice = voices.find(voice => voice.voiceURI === voiceSettings.voiceURI);
-            if (selectedVoice) {
-              console.log(`🎤 指定音声: ${selectedVoice.name}`);
-            }
-          }
-          
-          // 音声が見つからない場合または自動選択の場合
-          if (!selectedVoice) {
-            // 優先順位: O-Ren (女性) > Kyoko (女性) > Otoya (男性) > その他の日本語
-            const orenVoice = voices.find(voice => 
-              (voice.lang === 'ja-JP' || voice.lang.startsWith('ja')) && 
-              (voice.name.includes('O-ren') || voice.name.includes('O-Ren'))
-            );
-            
-            const kyokoVoice = voices.find(voice => 
-              (voice.lang === 'ja-JP' || voice.lang.startsWith('ja')) && 
-              voice.name.includes('Kyoko')
-            );
-            
-            const otoyaVoice = voices.find(voice => 
-              (voice.lang === 'ja-JP' || voice.lang.startsWith('ja')) && 
-              voice.name.includes('Otoya')
-            );
-            
-            const appleVoice = voices.find(voice => 
-              (voice.lang === 'ja-JP' || voice.lang.startsWith('ja')) && 
-              voice.localService
-            );
-            
-            const anyJapaneseVoice = voices.find(voice => 
-              voice.lang === 'ja-JP' || voice.lang.startsWith('ja')
-            );
-            
-            selectedVoice = orenVoice || kyokoVoice || otoyaVoice || appleVoice || anyJapaneseVoice;
-            
-            if (selectedVoice) {
-              console.log(`✅ 自動選択: ${selectedVoice.name}`);
-            }
-          }
-          
-          // 音声設定を適用（確実に数値として設定）
-          msg.rate = Number(voiceSettings.rate) || 0.95;
-          msg.volume = Number(voiceSettings.volume) || 1.0;
-          
-          // O-Renの場合はピッチを1.3に、それ以外は設定値または1.0
-          if (selectedVoice && (selectedVoice.name.includes('O-ren') || selectedVoice.name.includes('O-Ren'))) {
-            msg.pitch = Number(voiceSettings.pitch) || 1.3;
-            console.log(`🎤 O-Ren使用: デフォルトピッチ1.3を適用`);
-          } else {
-            msg.pitch = Number(voiceSettings.pitch) || 1.0;
-          }
-          
-          console.log(`🔊 音声パラメータ: 速度=${msg.rate} ピッチ=${msg.pitch} 音量=${msg.volume} 音声=${selectedVoice ? selectedVoice.name : 'なし'}`);
-        }
-        
-        // 音声が見つからない場合のフォールバック
-        if (!selectedVoice) {
-          const defaultVoice = voices.find(v => v.default) || voices[0];
-          if (defaultVoice) {
-            selectedVoice = defaultVoice;
-            console.log(`⚠️ フォールバック音声を使用: ${defaultVoice.name}`);
-          } else {
-            console.log('⚠️ 音声が見つかりません。代替システムを使用');
-            
-            // 音声が見つからない場合はラズベリーパイ代替システムを使用
-            if (isRaspberryPi) {
-              isSpeaking = false;
-              const numberMatch = text.match(/(\d+)/g);
-              if (numberMatch && numberMatch.length >= 1) {
-                const number = parseInt(numberMatch[0]);
-                const seatNumber = numberMatch.length > 1 ? parseInt(numberMatch[1]) : null;
-                playAlternativeAudio(number, seatNumber);
-              }
-              return;
-            }
-          }
-        }
-        
-        if (selectedVoice) {
-          msg.voice = selectedVoice;
-        }
-        
-        msg.onstart = () => {
-          console.log('🔊 音声再生開始:', text);
-        };
-        
-        msg.onend = () => {
-          console.log('✅ 音声再生終了');
-          isSpeaking = false;
-          const nextDelay = isRaspberryPi ? 1000 : 500; // ラズベリーパイは長めの間隔
-          setTimeout(() => {
-            playNextSpeech();
-          }, nextDelay);
-        };
-        
-        msg.onerror = (event) => {
-          console.error('❌ 音声再生エラー:', event);
-          isSpeaking = false;
-          
-          // ラズベリーパイで音声エラーが発生した場合は代替システムを使用
-          if (isRaspberryPi) {
-            console.log('🥧 音声エラーのため代替音声システムを使用');
-            const numberMatch = text.match(/(\d+)/g);
-            if (numberMatch && numberMatch.length >= 1) {
-              const number = parseInt(numberMatch[0]);
-              const seatNumber = numberMatch.length > 1 ? parseInt(numberMatch[1]) : null;
-              playAlternativeAudio(number, seatNumber);
-            }
-          }
-          
-          const errorDelay = isRaspberryPi ? 2000 : 1000;
-          setTimeout(() => {
-            playNextSpeech();
-          }, errorDelay);
-        };
-        
-        // 音声再生
-        console.log('🎤 音声合成開始:', text);
-        speechSynthesis.speak(msg);
-        
-        // タイムアウト処理（ラズベリーパイではより長いタイムアウト）
-        const timeoutDuration = isRaspberryPi ? 25000 : 15000;
-        const timeoutId = setTimeout(() => {
-          if (isSpeaking) {
-            console.log('⏰ 音声再生タイムアウト。代替システムを使用。');
-            speechSynthesis.cancel();
-            isSpeaking = false;
-            
-            // タイムアウト時にもラズベリーパイ代替システムを使用
-            if (isRaspberryPi) {
-              const numberMatch = text.match(/(\d+)/g);
-              if (numberMatch && numberMatch.length >= 1) {
-                const number = parseInt(numberMatch[0]);
-                const seatNumber = numberMatch.length > 1 ? parseInt(numberMatch[1]) : null;
-                playAlternativeAudio(number, seatNumber);
-              }
-            }
-            
-            setTimeout(() => playNextSpeech(), isRaspberryPi ? 1000 : 500);
-          }
-        }, timeoutDuration);
-        
-        // 正常終了時にタイムアウトをクリア
-        msg.addEventListener('end', () => {
-          clearTimeout(timeoutId);
-        });
-        
-      }, cancelWaitTime);
-      
-    } catch (error) {
-      console.error('❌ 音声合成エラー:', error);
-      isSpeaking = false;
-      
-      // ラズベリーパイで例外が発生した場合は代替システムを使用
-      if (isRaspberryPi) {
-        console.log('🥧 音声合成例外のため代替音声システムを使用');
-        const numberMatch = text.match(/(\d+)/g);
-        if (numberMatch && numberMatch.length >= 1) {
-          const number = parseInt(numberMatch[0]);
-          const seatNumber = numberMatch.length > 1 ? parseInt(numberMatch[1]) : null;
-          playAlternativeAudio(number, seatNumber);
-        }
+      // 音声エンジンの選択（指定音声 or 自動選択）
+      if (voiceSettings.voiceURI) {
+        selectedVoice = voices.find(voice => voice.voiceURI === voiceSettings.voiceURI);
       }
       
-      const errorRetryDelay = isRaspberryPi ? 2000 : 1000;
-      setTimeout(() => {
-        playNextSpeech();
-      }, errorRetryDelay);
-    }
+      if (!selectedVoice) {
+        // 優先順位: O-Ren > Kyoko > Otoya > その他
+        const orenVoice = voices.find(v => v.lang.startsWith('ja') && v.name.includes('O-ren'));
+        const kyokoVoice = voices.find(v => v.lang.startsWith('ja') && v.name.includes('Kyoko'));
+        const otoyaVoice = voices.find(v => v.lang.startsWith('ja') && v.name.includes('Otoya'));
+        const japaneseVoice = voices.find(v => v.lang.startsWith('ja'));
+        
+        selectedVoice = orenVoice || kyokoVoice || otoyaVoice || japaneseVoice || voices[0];
+        console.log(`✅ 自動選択: ${selectedVoice.name}`);
+      }
+      
+      // 音声を設定
+      if (selectedVoice) {
+        msg.voice = selectedVoice;
+      }
+      
+      // パラメータ設定
+      msg.rate = Number(voiceSettings.rate) || 0.95;
+      msg.volume = Number(voiceSettings.volume) || 1.0;
+      
+      // O-Ren使用時はピッチ1.3
+      if (selectedVoice && selectedVoice.name.includes('O-ren')) {
+        msg.pitch = 1.3;
+      } else {
+        msg.pitch = Number(voiceSettings.pitch) || 1.0;
+      }
+      
+      console.log(`🔊 標準音声: ${selectedVoice ? selectedVoice.name : 'なし'} 速度=${msg.rate} ピッチ=${msg.pitch}`);
+      
+      // イベントハンドラ設定
+      msg.onend = () => {
+        isSpeaking = false;
+        setTimeout(() => playNextSpeech(), 500);
+      };
+      
+      msg.onerror = (e) => {
+        console.error('❌ 標準音声エラー:', e);
+        isSpeaking = false;
+        setTimeout(() => playNextSpeech(), 500);
+      };
+      
+      // 音声再生
+      speechSynthesis.speak(msg);
+      
+    }, 200);  // 200ms待機してから実行
   }
 
   function getPriorityLabel(priority) {
@@ -1008,20 +999,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 音声設定を更新する共通関数
   const updateVoiceSettings = (settings) => {
-    if (settings) {
-      voiceSettings = {
-        voiceURI: String(settings.voiceURI || ''),
-        rate: Number(settings.rate) || 0.95,
-        pitch: Number(settings.pitch) || 1.0,
-        volume: Number(settings.volume) || 1.0
-      };
-      console.log(`🔊 音声設定: URI="${voiceSettings.voiceURI || '自動'}" rate=${voiceSettings.rate} pitch=${voiceSettings.pitch} vol=${voiceSettings.volume}`);
+    if (!settings) {
+      return;
+    }
+    
+    const newSettings = {
+      voiceURI: String(settings.voiceURI || ''),
+      rate: Number(settings.rate) || 0.95,
+      pitch: Number(settings.pitch) || 1.0,
+      volume: Number(settings.volume) || 1.0,
+      useVoicevox: Boolean(settings.useVoicevox),
+      voicevoxSpeaker: Number(settings.voicevoxSpeaker) || 7,
+      voicevoxSpeed: Number(settings.voicevoxSpeed) || 1.1,
+      voicevoxPitch: Number(settings.voicevoxPitch) || 0,
+      voicevoxIntonation: Number(settings.voicevoxIntonation) || 1.5
+    };
+    
+    voiceSettings = newSettings;
+    
+    // 新しいVOICEVOXシステムにも通知
+    if (window.VoicevoxPlayer) {
+      window.VoicevoxPlayer.updateVoiceSettings(newSettings);
     }
   };
 
   // Socket.io イベントハンドラ
   socket.on('init', (data) => {
-    console.log('📥 初期データ受信');
     calledHistory = data.calledHistory || [];
     currentCall = data.currentCall;
     tickets = data.tickets || [];
@@ -1043,7 +1046,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 音声設定が変更されたときの専用イベント（即座に反映）
   socket.on('voiceSettingsChanged', (settings) => {
-    console.log('🔊 音声設定が即座に更新されました');
     updateVoiceSettings(settings);
     
     // 視覚的なフィードバックを表示
@@ -1078,13 +1080,82 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // 音声許可取得フラグ
+  let audioUnlocked = false;
+  
+  // デバッグ用: 現在の音声設定を表示するグローバル関数
+  window.debugVoiceSettings = () => {
+    return voiceSettings;
+  };
+  
+  // ページ内の任意のクリックで音声をアンロック（自動再生を許可）
+  async function unlockAudio() {
+    if (audioUnlocked) {
+      return;
+    }
+    
+    // AudioContextをアンロック
+    if (audioContext && audioContext.state === 'suspended') {
+      try {
+        await audioContext.resume();
+      } catch (e) {
+        // エラーを無視
+      }
+    }
+    
+    // ダミーの無音を再生してブラウザの自動再生を許可
+    const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+    silentAudio.volume = 0.01;
+    
+    try {
+      await silentAudio.play();
+      audioUnlocked = true;
+    } catch (error) {
+      // エラーを無視して続行
+      audioUnlocked = true; // エラーでもフラグは立てる（既に許可されている可能性）
+    }
+  }
+  
+  // ページ読み込み時に、最初のクリック/タッチで音声をアンロック
+  document.addEventListener('DOMContentLoaded', () => {
+    const audioHint = document.getElementById('audioHint');
+    const unlockEvents = ['click', 'touchstart', 'touchend', 'keydown'];
+    
+    const unlockHandler = async (e) => {
+      console.log('🖱️ ユーザー操作検知:', e.type);
+      
+      await unlockAudio();
+      
+      // ヒントを非表示
+      if (audioHint) {
+        audioHint.style.display = 'none';
+      }
+      
+      // 一度実行したらリスナーを削除
+      unlockEvents.forEach(event => {
+        document.removeEventListener(event, unlockHandler);
+      });
+    };
+    
+    unlockEvents.forEach(event => {
+      document.addEventListener(event, unlockHandler, { once: false, passive: true });
+    });
+    
+    // 5秒後にヒントを表示（まだアンロックされていない場合）
+    setTimeout(() => {
+      if (!audioUnlocked && audioHint) {
+        audioHint.style.display = 'block';
+      }
+    }, 5000);
+    
+  });
+
   // 音声初期化を一度だけ実行する統合関数
   let audioInitAttempted = false;
   
   const tryInitializeAudio = (source) => {
     if (audioInitAttempted) return;
     audioInitAttempted = true;
-    console.log(`🔊 音声システム初期化開始 (${source})`);
     
     setTimeout(() => {
       initializeAudio();

@@ -5,6 +5,19 @@ const getServerUrl = () => {
   return `https://${currentHost}:${port}`;
 };
 
+// グローバルエラーハンドラ（ブラウザ拡張機能のエラーを無視）
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason && event.reason.message && 
+      (event.reason.message.includes('Could not establish connection') ||
+       event.reason.message.includes('Receiving end does not exist') ||
+       event.reason.message.includes('Extension context invalidated'))) {
+    console.log('ℹ️ ブラウザ拡張機能のエラーを無視:', event.reason.message);
+    event.preventDefault();
+    return;
+  }
+  console.error('❌ 未処理のPromiseエラー:', event.reason);
+});
+
 const socket = io(getServerUrl());
 const seatList = document.getElementById('seatList');
 const newSeatNumber = document.getElementById('newSeatNumber');
@@ -37,6 +50,18 @@ const volumeValue = document.getElementById('volumeValue');
 const saveVoiceSettingsBtn = document.getElementById('saveVoiceSettingsBtn');
 const resetVoiceSettingsBtn = document.getElementById('resetVoiceSettingsBtn');
 const voiceSettingsStatus = document.getElementById('voiceSettingsStatus');
+
+// VOICEVOX設定UI要素
+const useVoicevoxCheckbox = document.getElementById('useVoicevoxCheckbox');
+const voicevoxSettings = document.getElementById('voicevoxSettings');
+const standardVoiceSettings = document.getElementById('standardVoiceSettings');
+const voicevoxSpeakerSelect = document.getElementById('voicevoxSpeakerSelect');
+const voicevoxSpeedSlider = document.getElementById('voicevoxSpeedSlider');
+const voicevoxSpeedValue = document.getElementById('voicevoxSpeedValue');
+const voicevoxPitchSlider = document.getElementById('voicevoxPitchSlider');
+const voicevoxPitchValue = document.getElementById('voicevoxPitchValue');
+const voicevoxIntonationSlider = document.getElementById('voicevoxIntonationSlider');
+const voicevoxIntonationValue = document.getElementById('voicevoxIntonationValue');
 
 // 単位リスト（LocalStorageから読み込み）
 let customUnits = JSON.parse(localStorage.getItem('customUnits') || '[]');
@@ -99,7 +124,12 @@ const defaultVoiceSettings = {
   voiceURI: '', // 空文字列は自動選択
   rate: 0.95,
   pitch: 1.0,
-  volume: 1.0
+  volume: 1.0,
+  useVoicevox: false,
+  voicevoxSpeaker: 7,  // 京町セイカ（kyoto）
+  voicevoxSpeed: 1.1,
+  voicevoxPitch: 0,  // ピッチは0が標準（-0.15〜0.15の範囲）
+  voicevoxIntonation: 1.5  // 抑揚を1.5に（カスカス防止）
 };
 
 // LocalStorageから音声設定を読み込み
@@ -167,6 +197,43 @@ function updateVoiceSettingsUI() {
     volumeSlider.value = currentVoiceSettings.volume;
     volumeValue.textContent = currentVoiceSettings.volume.toFixed(1);
   }
+  
+  // VOICEVOX設定を反映
+  if (useVoicevoxCheckbox) {
+    useVoicevoxCheckbox.checked = currentVoiceSettings.useVoicevox || false;
+    toggleVoicevoxSettings();
+  }
+  if (voicevoxSpeakerSelect) {
+    voicevoxSpeakerSelect.value = currentVoiceSettings.voicevoxSpeaker || 7;
+  }
+  if (voicevoxSpeedSlider) {
+    voicevoxSpeedSlider.value = currentVoiceSettings.voicevoxSpeed || 1.1;
+    voicevoxSpeedValue.textContent = (currentVoiceSettings.voicevoxSpeed || 1.1).toFixed(1);
+  }
+  if (voicevoxPitchSlider) {
+    voicevoxPitchSlider.value = currentVoiceSettings.voicevoxPitch || 0;
+    voicevoxPitchValue.textContent = (currentVoiceSettings.voicevoxPitch || 0).toFixed(2);
+  }
+  if (voicevoxIntonationSlider) {
+    voicevoxIntonationSlider.value = currentVoiceSettings.voicevoxIntonation || 1.5;
+    voicevoxIntonationValue.textContent = (currentVoiceSettings.voicevoxIntonation || 1.5).toFixed(1);
+  }
+}
+
+// VOICEVOX設定の表示/非表示を切り替え
+function toggleVoicevoxSettings() {
+  if (useVoicevoxCheckbox && useVoicevoxCheckbox.checked) {
+    if (voicevoxSettings) voicevoxSettings.style.display = 'block';
+    if (standardVoiceSettings) standardVoiceSettings.style.display = 'none';
+  } else {
+    if (voicevoxSettings) voicevoxSettings.style.display = 'none';
+    if (standardVoiceSettings) standardVoiceSettings.style.display = 'block';
+  }
+}
+
+// VOICEVOXチェックボックスのイベント
+if (useVoicevoxCheckbox) {
+  useVoicevoxCheckbox.onchange = toggleVoicevoxSettings;
 }
 
 // スライダーの値変更イベント
@@ -188,6 +255,25 @@ if (volumeSlider) {
   };
 }
 
+// VOICEVOXスライダーのイベント
+if (voicevoxSpeedSlider) {
+  voicevoxSpeedSlider.oninput = () => {
+    voicevoxSpeedValue.textContent = parseFloat(voicevoxSpeedSlider.value).toFixed(1);
+  };
+}
+
+if (voicevoxPitchSlider) {
+  voicevoxPitchSlider.oninput = () => {
+    voicevoxPitchValue.textContent = parseFloat(voicevoxPitchSlider.value).toFixed(2);
+  };
+}
+
+if (voicevoxIntonationSlider) {
+  voicevoxIntonationSlider.oninput = () => {
+    voicevoxIntonationValue.textContent = parseFloat(voicevoxIntonationSlider.value).toFixed(1);
+  };
+}
+
 // 設定保存ボタン
 if (saveVoiceSettingsBtn) {
   saveVoiceSettingsBtn.onclick = () => {
@@ -195,14 +281,23 @@ if (saveVoiceSettingsBtn) {
       voiceURI: voiceSelect ? voiceSelect.value : '',
       rate: rateSlider ? parseFloat(rateSlider.value) : 0.95,
       pitch: pitchSlider ? parseFloat(pitchSlider.value) : 1.0,
-      volume: volumeSlider ? parseFloat(volumeSlider.value) : 1.0
+      volume: volumeSlider ? parseFloat(volumeSlider.value) : 1.0,
+      useVoicevox: useVoicevoxCheckbox ? useVoicevoxCheckbox.checked : false,
+      voicevoxSpeaker: voicevoxSpeakerSelect ? parseInt(voicevoxSpeakerSelect.value) : 7,
+      voicevoxSpeed: voicevoxSpeedSlider ? parseFloat(voicevoxSpeedSlider.value) : 1.1,
+      voicevoxPitch: voicevoxPitchSlider ? parseFloat(voicevoxPitchSlider.value) : 0,
+      voicevoxIntonation: voicevoxIntonationSlider ? parseFloat(voicevoxIntonationSlider.value) : 1.5
     };
     
     console.log('🔊 音声設定を保存・送信中:', currentVoiceSettings);
-    console.log(`   - 音声URI: "${currentVoiceSettings.voiceURI}" (${currentVoiceSettings.voiceURI ? '指定あり' : '自動選択'})`);
-    console.log(`   - 速度: ${currentVoiceSettings.rate}`);
-    console.log(`   - ピッチ: ${currentVoiceSettings.pitch}`);
-    console.log(`   - 音量: ${currentVoiceSettings.volume}`);
+    if (currentVoiceSettings.useVoicevox) {
+      console.log(`   - VOICEVOX使用: speaker=${currentVoiceSettings.voicevoxSpeaker} speed=${currentVoiceSettings.voicevoxSpeed} pitch=${currentVoiceSettings.voicevoxPitch} intonation=${currentVoiceSettings.voicevoxIntonation}`);
+    } else {
+      console.log(`   - 音声URI: "${currentVoiceSettings.voiceURI}" (${currentVoiceSettings.voiceURI ? '指定あり' : '自動選択'})`);
+      console.log(`   - 速度: ${currentVoiceSettings.rate}`);
+      console.log(`   - ピッチ: ${currentVoiceSettings.pitch}`);
+      console.log(`   - 音量: ${currentVoiceSettings.volume}`);
+    }
     
     // LocalStorageに保存
     saveVoiceSettingsToStorage(currentVoiceSettings);
@@ -307,13 +402,38 @@ if ('speechSynthesis' in window) {
   }, 1000);
 }
 
+// ページ読み込み時: 必ずデフォルト設定をサーバーに送信
+let initialSettingsSent = false;
+
+socket.on('connect', () => {
+  if (!initialSettingsSent) {
+    initialSettingsSent = true;
+    
+    console.log('🔌 管理画面がサーバーに接続しました');
+    
+    // 少し待ってから初期設定を送信
+    setTimeout(() => {
+      // 確実にデフォルト設定を送信（LocalStorageが空でも）
+      const settingsToSend = {
+        ...defaultVoiceSettings,
+        ...currentVoiceSettings
+      };
+      
+      console.log('📤 初期音声設定をサーバーに送信:', settingsToSend);
+      console.log('   特に重要: voicevoxIntonation =', settingsToSend.voicevoxIntonation);
+      
+      socket.emit('admin:updateVoiceSettings', settingsToSend);
+    }, 1000);
+  }
+});
+
 // 合成音声テスト用
 // ============================================
 // テスト音声のテキストを変更する場合は、ここを編集してください
 // ============================================
 const testSpeechBtn = document.getElementById('testSpeechBtn');
 if (testSpeechBtn) {
-  testSpeechBtn.onclick = () => {
+  testSpeechBtn.onclick = async () => {
     // 最初の座席の情報を使用してテスト
     let testMessage = '受付番号1番の患者さま、1番ユニットへお越しください';
     
@@ -324,6 +444,102 @@ if (testSpeechBtn) {
       testMessage = `受付番号1番の患者さま、${seatNumber}番${seatUnit}へお越しください`;
     }
     
+    // VOICEVOXを使用する場合
+    const useVoicevox = useVoicevoxCheckbox ? useVoicevoxCheckbox.checked : false;
+    
+    if (useVoicevox) {
+      console.log('🎤 VOICEVOXでテスト音声を再生');
+      const speaker = voicevoxSpeakerSelect ? parseInt(voicevoxSpeakerSelect.value) : 7;
+      const speed = voicevoxSpeedSlider ? parseFloat(voicevoxSpeedSlider.value) : 1.1;
+      const pitch = voicevoxPitchSlider ? parseFloat(voicevoxPitchSlider.value) : 0;
+      const intonation = voicevoxIntonationSlider ? parseFloat(voicevoxIntonationSlider.value) : 1.5;
+      
+      try {
+        // F-Callサーバー経由でVOICEVOXにアクセス（CORS問題を回避）
+        const VOICEVOX_API_URL = '/api/voicevox';
+        
+        console.log(`📡 VOICEVOX接続テスト: ${VOICEVOX_API_URL}`);
+        
+        // 音声クエリを生成
+        const queryResponse = await fetch(`${VOICEVOX_API_URL}/audio_query?text=${encodeURIComponent(testMessage)}&speaker=${speaker}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!queryResponse.ok) {
+          const errorText = await queryResponse.text();
+          console.error('❌ VOICEVOX APIレスポンス:', errorText);
+          throw new Error(`VOICEVOX APIエラー: ${queryResponse.status} - ${errorText}`);
+        }
+        
+        const audioQuery = await queryResponse.json();
+        
+        // 音質改善のため全パラメータを最適設定
+        audioQuery.speedScale = speed;                    // 話速（0.5〜2.0）
+        audioQuery.pitchScale = pitch;                    // 音高（-0.15〜0.15が推奨）
+        audioQuery.intonationScale = intonation;          // 抑揚（0〜2、1.5推奨）
+        audioQuery.volumeScale = 1.2;                     // 音量スケール（1.0より大きく）
+        audioQuery.prePhonemeLength = 0.1;                // 音声前の無音（0.1秒）
+        audioQuery.postPhonemeLength = 0.1;               // 音声後の無音（0.1秒）
+        audioQuery.outputSamplingRate = 48000;            // サンプリングレート（48kHzで高品質）
+        audioQuery.outputStereo = true;                   // ステレオ出力で音質向上
+        
+        console.log('🔊 VOICEVOX詳細設定:', {
+          speaker,
+          speedScale: audioQuery.speedScale,
+          pitchScale: audioQuery.pitchScale,
+          intonationScale: audioQuery.intonationScale,
+          volumeScale: audioQuery.volumeScale,
+          samplingRate: audioQuery.outputSamplingRate,
+          stereo: audioQuery.outputStereo
+        });
+        
+        // 音声を合成（疑問文対応）
+        const synthesisResponse = await fetch(`${VOICEVOX_API_URL}/synthesis?speaker=${speaker}&enable_interrogative_upspeak=true`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'accept': 'audio/wav'
+          },
+          body: JSON.stringify(audioQuery)
+        });
+        
+        if (!synthesisResponse.ok) {
+          const errorText = await synthesisResponse.text();
+          throw new Error(`VOICEVOX合成エラー: ${synthesisResponse.status} - ${errorText}`);
+        }
+        
+        const audioBlob = await synthesisResponse.blob();
+        console.log(`📦 音声データサイズ: ${(audioBlob.size / 1024).toFixed(2)} KB`);
+        
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        // 音量を最大に
+        audio.volume = 1.0;
+        
+        audio.onended = () => URL.revokeObjectURL(audioUrl);
+        audio.onerror = (error) => {
+          console.error('❌ VOICEVOX音声再生エラー:', error);
+          URL.revokeObjectURL(audioUrl);
+          alert('VOICEVOXの音声再生に失敗しました。VOICEVOXアプリが起動しているか確認してください。');
+        };
+        
+        console.log('🔊 VOICEVOX音声再生開始（24kHz, 抑揚1.2）');
+        await audio.play();
+        console.log('✅ VOICEVOXテスト音声再生完了');
+        return;
+        
+      } catch (error) {
+        console.error('❌ VOICEVOXエラー:', error);
+        alert(`VOICEVOXに接続できません。\n\nエラー: ${error.message}\n\nVOICEVOXアプリが起動しているか確認してください。`);
+        return;
+      }
+    }
+    
+    // 標準音声の場合
     const msg = new window.SpeechSynthesisUtterance(testMessage);
     msg.lang = 'ja-JP';
     
@@ -763,6 +979,20 @@ socket.on('init', (data) => {
   currentDate = data.currentDate || '';
   networkInfo = data.networkInfo || [];
   showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
+  
+  // 音声設定を受信（サーバーの設定で上書き）
+  if (data.voiceSettings) {
+    console.log('📥 サーバーから音声設定を受信:', data.voiceSettings);
+    
+    // currentVoiceSettingsを更新
+    currentVoiceSettings = {
+      ...defaultVoiceSettings,
+      ...data.voiceSettings
+    };
+    
+    // UIに反映
+    updateVoiceSettingsUI();
+  }
   
   // 初期化時に単位ドロップダウンを更新
   if (newSeatUnit) {

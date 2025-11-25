@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VOICEVOX直接テスト</title>
+  <style>
+    body {
+      font-family: -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #log {
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 14px;
+      max-height: 500px;
+      overflow-y: auto;
+      margin-top: 20px;
+      white-space: pre-wrap;
+    }
+    .success { color: #0f0; }
+    .error { color: #f00; }
+    .info { color: #0ff; }
+  </style>
+</head>
+<body>
+  <h1>🔊 VOICEVOX直接再生テスト</h1>
+  
+  <div>
+    <button id="testBtn">VOICEVOX音声テスト（自動アンロック）</button>
+    <button onclick="clearLog()">ログクリア</button>
+  </div>
+  
+  <div id="log"></div>
+
+  <script>
+    const logEl = document.getElementById('log');
+    let audioUnlocked = false;
+
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const className = type;
+      logEl.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(`[${type}] ${message}`);
+    }
+
+    function clearLog() {
+      logEl.innerHTML = '';
+    }
+
+    async function unlockAudio() {
+      log('🔓 音声アンロック処理開始', 'info');
+      
+      const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+      silentAudio.volume = 0.01;
+      
+      try {
+        await silentAudio.play();
+        log('✅ 音声アンロック完了', 'success');
+        audioUnlocked = true;
+      } catch (error) {
+        log('⚠️ 音声アンロック失敗: ' + error.message, 'error');
+        log('⚠️ エラーを無視して続行します', 'info');
+        audioUnlocked = true; // エラーでもフラグは立てる
+      }
+    }
+
+    async function testVoicevox() {
+      log('📋 VOICEVOX音声合成処理開始', 'info');
+      
+      const text = '受付番号1番の患者さま、1番ユニットへお越しください';
+      const speaker = 66; // もち子さん（セクシー）
+      
+      try {
+        log(`📤 ステップ1: 音声クエリ生成 (speaker=${speaker})`, 'info');
+        
+        const queryUrl = `/api/voicevox/audio_query?text=${encodeURIComponent(text)}&speaker=${speaker}`;
+        log(`リクエストURL: ${queryUrl}`, 'info');
+        
+        const queryResponse = await fetch(queryUrl, {
+          method: 'POST'
+        });
+        
+        if (!queryResponse.ok) {
+          throw new Error(`音声クエリ失敗: ${queryResponse.status} ${queryResponse.statusText}`);
+        }
+        
+        const audioQuery = await queryResponse.json();
+        log('✅ 音声クエリ生成成功', 'success');
+        
+        // パラメータ設定
+        audioQuery.speedScale = 1.0;
+        audioQuery.pitchScale = 0.0;
+        audioQuery.intonationScale = 1.5;
+        audioQuery.volumeScale = 1.2;
+        audioQuery.prePhonemeLength = 0.1;
+        audioQuery.postPhonemeLength = 0.1;
+        audioQuery.outputSamplingRate = 48000;
+        audioQuery.outputStereo = true;
+        
+        log('📊 パラメータ設定:', 'info');
+        log(`  - speedScale: ${audioQuery.speedScale}`, 'info');
+        log(`  - pitchScale: ${audioQuery.pitchScale}`, 'info');
+        log(`  - intonationScale: ${audioQuery.intonationScale}`, 'info');
+        log(`  - volumeScale: ${audioQuery.volumeScale}`, 'info');
+        log(`  - outputSamplingRate: ${audioQuery.outputSamplingRate}`, 'info');
+        log(`  - outputStereo: ${audioQuery.outputStereo}`, 'info');
+        
+        log('📤 ステップ2: 音声合成', 'info');
+        
+        const synthesisUrl = `/api/voicevox/synthesis?speaker=${speaker}&enable_interrogative_upspeak=true`;
+        log(`リクエストURL: ${synthesisUrl}`, 'info');
+        
+        const synthesisResponse = await fetch(synthesisUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'accept': 'audio/wav'
+          },
+          body: JSON.stringify(audioQuery)
+        });
+        
+        if (!synthesisResponse.ok) {
+          throw new Error(`音声合成失敗: ${synthesisResponse.status} ${synthesisResponse.statusText}`);
+        }
+        
+        const audioBlob = await synthesisResponse.blob();
+        log(`✅ 音声合成成功 (サイズ: ${(audioBlob.size / 1024).toFixed(2)} KB)`, 'success');
+        
+        log('📤 ステップ3: 音声再生', 'info');
+        
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        audio.volume = 1.0;
+        
+        audio.addEventListener('ended', () => {
+          log('✅ 再生完了', 'success');
+          URL.revokeObjectURL(audioUrl);
+        });
+        
+        audio.addEventListener('error', (e) => {
+          log('❌ 再生エラー: ' + (e.message || '不明なエラー'), 'error');
+          URL.revokeObjectURL(audioUrl);
+        });
+        
+        await audio.play();
+        log('🔊 再生中...', 'success');
+        
+      } catch (error) {
+        log('❌ エラー: ' + error.message, 'error');
+        log('スタック: ' + error.stack, 'error');
+      }
+    }
+
+    // ページ読み込み時にイベント設定
+    window.addEventListener('load', () => {
+      log('🚀 ページ読み込み完了', 'info');
+      log('💡 「VOICEVOX音声テスト（自動アンロック）」ボタンをクリックしてください', 'info');
+      
+      // ボタンクリックで音声アンロック→テスト実行
+      document.getElementById('testBtn').addEventListener('click', async () => {
+        log('=== VOICEVOX再生テスト開始（自動アンロック） ===', 'info');
+        
+        // ボタンクリック内で音声アンロック
+        if (!audioUnlocked) {
+          await unlockAudio();
+        }
+        
+        // アンロック確認
+        if (!audioUnlocked) {
+          log('❌ 音声アンロックに失敗しました', 'error');
+          return;
+        }
+        
+        // VOICEVOX音声テスト実行
+        await testVoicevox();
+      });
+    });
+  </script>
+</body>
+</html>
+

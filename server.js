@@ -92,6 +92,112 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
+// VOICEVOXプロキシ（CORS問題を回避）
+const VOICEVOX_BASE_URL = 'http://localhost:50021';
+
+// VOICEVOX /version エンドポイント
+app.get('/api/voicevox/version', async (req, res) => {
+  try {
+    const response = await fetch(`${VOICEVOX_BASE_URL}/version`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('❌ VOICEVOXプロキシエラー (version):', error.message);
+    res.status(503).json({ error: 'VOICEVOX接続失敗', message: error.message });
+  }
+});
+
+// VOICEVOX /speakers エンドポイント
+app.get('/api/voicevox/speakers', async (req, res) => {
+  try {
+    const response = await fetch(`${VOICEVOX_BASE_URL}/speakers`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('❌ VOICEVOXプロキシエラー (speakers):', error.message);
+    res.status(503).json({ error: 'VOICEVOX接続失敗', message: error.message });
+  }
+});
+
+// VOICEVOX /audio_query エンドポイント
+app.post('/api/voicevox/audio_query', async (req, res) => {
+  try {
+    const { text, speaker } = req.query;
+    
+    if (!text || !speaker) {
+      return res.status(400).json({ error: 'text と speaker パラメータが必要です' });
+    }
+    
+    console.log(`🎤 VOICEVOX音声クエリ: speaker=${speaker}, text="${text.substring(0, 30)}..."`);
+    
+    const response = await fetch(`${VOICEVOX_BASE_URL}/audio_query?text=${encodeURIComponent(text)}&speaker=${speaker}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ VOICEVOX APIエラー: ${response.status} - ${errorText}`);
+      return res.status(response.status).json({ error: 'VOICEVOX APIエラー', details: errorText });
+    }
+    
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('❌ VOICEVOXプロキシエラー (audio_query):', error.message);
+    res.status(503).json({ error: 'VOICEVOX接続失敗', message: error.message });
+  }
+});
+
+// VOICEVOX /synthesis エンドポイント
+app.post('/api/voicevox/synthesis', async (req, res) => {
+  try {
+    const { speaker, enable_interrogative_upspeak } = req.query;
+    const audioQuery = req.body;
+    
+    if (!speaker) {
+      return res.status(400).json({ error: 'speaker パラメータが必要です' });
+    }
+    
+    console.log(`🔊 VOICEVOX音声合成: speaker=${speaker}, intonation=${audioQuery.intonationScale}`);
+    
+    let synthesisUrl = `${VOICEVOX_BASE_URL}/synthesis?speaker=${speaker}`;
+    if (enable_interrogative_upspeak) {
+      synthesisUrl += `&enable_interrogative_upspeak=${enable_interrogative_upspeak}`;
+    }
+    
+    const response = await fetch(synthesisUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'accept': 'audio/wav'
+      },
+      body: JSON.stringify(audioQuery)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ VOICEVOX合成エラー: ${response.status} - ${errorText}`);
+      return res.status(response.status).json({ error: 'VOICEVOX合成エラー', details: errorText });
+    }
+    
+    // 音声データをそのまま返す
+    const audioBuffer = await response.arrayBuffer();
+    res.set('Content-Type', 'audio/wav');
+    res.send(Buffer.from(audioBuffer));
+    
+    console.log(`✅ VOICEVOX音声合成完了 (${(audioBuffer.byteLength / 1024).toFixed(2)} KB)`);
+  } catch (error) {
+    console.error('❌ VOICEVOXプロキシエラー (synthesis):', error.message);
+    res.status(503).json({ error: 'VOICEVOX接続失敗', message: error.message });
+  }
+});
+
+console.log('🎙️ VOICEVOXプロキシを設定しました (/api/voicevox/*)');
+
+
 // Express エラーハンドリングミドルウェア
 app.use((error, req, res, next) => {
   console.error('🌐 Express エラー:', {
@@ -132,15 +238,59 @@ let statistics = {
 // 表示設定
 let showEstimatedWaitTime = false;  // 初期値: 表示しない
 
-// 音声設定（グローバル）
-let voiceSettings = {
+// 音声設定の永続化ファイルパス
+const VOICE_SETTINGS_FILE = path.join(__dirname, 'voice_settings.json');
+
+// デフォルト音声設定
+const DEFAULT_VOICE_SETTINGS = {
   voiceURI: '',
   rate: 0.95,
   pitch: 1.0,
-  volume: 1.0
+  volume: 1.0,
+  useVoicevox: false,
+  voicevoxSpeaker: 7,  // 京町セイカ（kyoto）
+  voicevoxSpeed: 1.1,
+  voicevoxPitch: 0,
+  voicevoxIntonation: 1.5  // 抑揚1.5でカスカス防止（重要！）
 };
 
+// 音声設定をファイルから読み込み
+function loadVoiceSettings() {
+  try {
+    if (fs.existsSync(VOICE_SETTINGS_FILE)) {
+      const data = fs.readFileSync(VOICE_SETTINGS_FILE, 'utf8');
+      const savedSettings = JSON.parse(data);
+      console.log('📂 音声設定をファイルから読み込み:', savedSettings);
+      return { ...DEFAULT_VOICE_SETTINGS, ...savedSettings };
+    }
+  } catch (error) {
+    console.error('❌ 音声設定の読み込みエラー:', error);
+  }
+  console.log('🔊 デフォルト音声設定を使用');
+  return { ...DEFAULT_VOICE_SETTINGS };
+}
+
+// 音声設定をファイルに保存
+function saveVoiceSettings(settings) {
+  try {
+    fs.writeFileSync(VOICE_SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
+    console.log('💾 音声設定をファイルに保存しました');
+  } catch (error) {
+    console.error('❌ 音声設定の保存エラー:', error);
+  }
+}
+
+// 音声設定（グローバル）
+let voiceSettings = loadVoiceSettings();
+
 console.log('🔊 サーバー起動時の音声設定:', voiceSettings);
+console.log('   特に重要: voicevoxIntonation =', voiceSettings.voicevoxIntonation);
+
+// 初回起動時にデフォルト設定をファイルに保存
+if (!fs.existsSync(VOICE_SETTINGS_FILE)) {
+  console.log('📝 初回起動: デフォルト音声設定をファイルに保存');
+  saveVoiceSettings(voiceSettings);
+}
 
 function getCurrentDate() {
   const now = new Date();
@@ -680,13 +830,26 @@ io.on('connection', (socket) => {
         voiceURI: String(settings.voiceURI || ''),
         rate: Number(settings.rate) || 0.95,
         pitch: Number(settings.pitch) || 1.0,
-        volume: Number(settings.volume) || 1.0
+        volume: Number(settings.volume) || 1.0,
+        useVoicevox: Boolean(settings.useVoicevox),
+        voicevoxSpeaker: Number(settings.voicevoxSpeaker) || 7,
+        voicevoxSpeed: Number(settings.voicevoxSpeed) || 1.1,
+        voicevoxPitch: Number(settings.voicevoxPitch) || 0,
+        voicevoxIntonation: Number(settings.voicevoxIntonation) || 1.5
       };
       
       voiceSettings = newSettings;
       
-      console.log('🔊 音声設定を更新:');
-      console.log(`   URI="${voiceSettings.voiceURI}" rate=${voiceSettings.rate} pitch=${voiceSettings.pitch} volume=${voiceSettings.volume}`);
+      // ファイルに保存（再起動後も設定を保持）
+      saveVoiceSettings(voiceSettings);
+      
+      if (voiceSettings.useVoicevox) {
+        console.log('🔊 音声設定を更新（VOICEVOX）:');
+        console.log(`   speaker=${voiceSettings.voicevoxSpeaker} speed=${voiceSettings.voicevoxSpeed} pitch=${voiceSettings.voicevoxPitch} intonation=${voiceSettings.voicevoxIntonation}`);
+      } else {
+        console.log('🔊 音声設定を更新（標準）:');
+        console.log(`   URI="${voiceSettings.voiceURI}" rate=${voiceSettings.rate} pitch=${voiceSettings.pitch} volume=${voiceSettings.volume}`);
+      }
       
       // 全クライアントに即座に音声設定を配信（専用イベント）
       io.emit('voiceSettingsChanged', voiceSettings);
@@ -701,7 +864,7 @@ io.on('connection', (socket) => {
         settings: voiceSettings 
       });
       
-      console.log('✅ 配信完了');
+      console.log('✅ 配信完了（ファイル保存済み）');
       
     } catch (error) {
       console.error('❌ 音声設定更新エラー:', error);

@@ -8,6 +8,7 @@
 - **スタッフによる呼び出し**：診察の準備ができたらスタッフが患者を呼び出し
 - **待合室での大画面表示**：現在呼ばれている番号と履歴を表示
 - **席（診察室）の管理**：システム管理者が席の追加・削除・編集
+- **音声アナウンス**：標準音声またはVOICEVOX（高品質）で呼び出し
 - **HTTPS対応**：暗号化通信によるセキュアな運用
 
 ## システム構成
@@ -57,6 +58,33 @@ Macで使用する場合は、デスクトップショートカットを作成�
    - ブラウザで各画面が自動的に開きます
 
 詳細な手順は [MAC_SETUP.md](./MAC_SETUP.md) を参照してください。
+
+### VOICEVOX連携（オプション）
+
+高品質な音声合成エンジン「VOICEVOX」を使用できます：
+
+**VOICEVOXのみ起動:**
+```bash
+./start-voicevox.sh
+```
+
+**F-Call + VOICEVOX を同時起動:**
+```bash
+./start-fcall-with-voicevox.sh
+```
+
+#### VOICEVOXプロキシ機能
+
+F-CallサーバーはVOICEVOX APIへのプロキシ機能を内蔵しており、ブラウザのCORS制限を回避します：
+
+- `/api/voicevox/version` - VOICEVOXのバージョン確認
+- `/api/voicevox/speakers` - 利用可能なキャラクター一覧
+- `/api/voicevox/audio_query` - 音声クエリ生成
+- `/api/voicevox/synthesis` - 音声合成
+
+これにより、ブラウザから直接 `http://localhost:50021` にアクセスする必要がなくなり、セキュアに動作します。
+
+詳細は [VOICEVOX_SETUP.md](./VOICEVOX_SETUP.md) および [VOICEVOX_TROUBLESHOOTING.md](./VOICEVOX_TROUBLESHOOTING.md) を参照してください。
 
 ### サーバーの停止
 

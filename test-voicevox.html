@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VOICEVOX接続テスト</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #log {
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      max-height: 500px;
+      overflow-y: auto;
+      margin-top: 20px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .success { color: #0f0; }
+    .error { color: #f00; }
+    .info { color: #0ff; }
+    .warning { color: #ff0; }
+    select {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+      margin: 10px 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 VOICEVOX接続診断ツール</h1>
+    
+    <div>
+      <button onclick="testConnection()">1️⃣ 接続テスト</button>
+      <button onclick="listSpeakers()">2️⃣ スピーカー一覧</button>
+      <button onclick="testSpeech()">3️⃣ 音声テスト</button>
+      <button onclick="clearLog()">🗑️ ログクリア</button>
+    </div>
+    
+    <div style="margin: 20px 0;">
+      <label>キャラクター:</label>
+      <select id="speakerSelect">
+        <option value="10">雨晴はう（男性風）</option>
+        <option value="2">四国めたん（ノーマル）</option>
+        <option value="3">ずんだもん（ノーマル）</option>
+        <option value="4">四国めたん（セクシー）</option>
+        <option value="5">ずんだもん（セクシー）</option>
+        <option value="17">九州そら（セクシー）</option>
+        <option value="66" selected>もち子さん（セクシー／あん子）</option>
+      </select>
+      
+      <button onclick="testSelectedSpeaker()">選択したキャラでテスト</button>
+    </div>
+    
+    <div id="log"></div>
+  </div>
+
+  <script>
+    // F-Callサーバー経由でVOICEVOXにアクセス（CORS問題を回避）
+    const VOICEVOX_URL = '/api/voicevox';
+    const logEl = document.getElementById('log');
+
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const className = type;
+      logEl.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(`[${type}] ${message}`);
+    }
+
+    function clearLog() {
+      logEl.innerHTML = '';
+    }
+
+    async function testConnection() {
+      log('=== 接続テスト開始 ===', 'info');
+      
+      try {
+        log(`接続先: ${VOICEVOX_URL}`, 'info');
+        
+        const response = await fetch(`${VOICEVOX_URL}/version`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTPエラー: ${response.status}`);
+        }
+        
+        const version = await response.json();
+        log(`✅ 接続成功！VOICEVOXバージョン: ${version}`, 'success');
+        
+        return true;
+      } catch (error) {
+        log(`❌ 接続失敗: ${error.message}`, 'error');
+        log('原因の可能性:', 'warning');
+        log('  1. VOICEVOXアプリが起動していない', 'warning');
+        log('  2. ポート50021が使用中', 'warning');
+        log('  3. ファイアウォールでブロックされている', 'warning');
+        return false;
+      }
+    }
+
+    async function listSpeakers() {
+      log('=== スピーカー一覧取得 ===', 'info');
+      
+      try {
+        const response = await fetch(`${VOICEVOX_URL}/speakers`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTPエラー: ${response.status}`);
+        }
+        
+        const speakers = await response.json();
+        log(`✅ ${speakers.length}個のキャラクターが利用可能`, 'success');
+        
+        // セクシー系のみ表示
+        log('\n💋 セクシー系キャラクター:', 'info');
+        speakers.forEach(speaker => {
+          speaker.styles.forEach(style => {
+            if (style.name.includes('セクシー')) {
+              log(`  - ${speaker.name}（${style.name}）: id=${style.id}`, 'success');
+            }
+          });
+        });
+        
+      } catch (error) {
+        log(`❌ エラー: ${error.message}`, 'error');
+      }
+    }
+
+    async function testSpeech() {
+      await testSpeechWithSpeaker(66, 'もち子さん（セクシー／あん子）');
+    }
+
+    async function testSelectedSpeaker() {
+      const select = document.getElementById('speakerSelect');
+      const speakerId = parseInt(select.value);
+      const speakerName = select.options[select.selectedIndex].text;
+      await testSpeechWithSpeaker(speakerId, speakerName);
+    }
+
+    async function testSpeechWithSpeaker(speakerId, speakerName) {
+      log(`=== 音声合成テスト: ${speakerName} (id=${speakerId}) ===`, 'info');
+      
+      const testText = '受付番号1番の患者さま、1番ユニットへお越しください';
+      
+      try {
+        // ステップ1: 音声クエリ生成
+        log('ステップ1: 音声クエリを生成中...', 'info');
+        const queryUrl = `${VOICEVOX_URL}/audio_query?text=${encodeURIComponent(testText)}&speaker=${speakerId}`;
+        log(`リクエスト: ${queryUrl}`, 'info');
+        
+        const queryResponse = await fetch(queryUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!queryResponse.ok) {
+          const errorText = await queryResponse.text();
+          log(`❌ クエリ生成失敗: ${queryResponse.status}`, 'error');
+          log(`エラー内容: ${errorText}`, 'error');
+          throw new Error(`クエリ生成エラー: ${queryResponse.status}`);
+        }
+        
+        const audioQuery = await queryResponse.json();
+        log('✅ 音声クエリ生成成功', 'success');
+        
+        // パラメータ設定
+        audioQuery.speedScale = 1.0;
+        audioQuery.pitchScale = 0.0;
+        audioQuery.intonationScale = 1.5;
+        audioQuery.volumeScale = 1.2;
+        audioQuery.prePhonemeLength = 0.1;
+        audioQuery.postPhonemeLength = 0.1;
+        audioQuery.outputSamplingRate = 48000;
+        audioQuery.outputStereo = true;
+        
+        log('パラメータ設定:', 'info');
+        log(`  - 速度: ${audioQuery.speedScale}`, 'info');
+        log(`  - ピッチ: ${audioQuery.pitchScale}`, 'info');
+        log(`  - 抑揚: ${audioQuery.intonationScale}`, 'info');
+        log(`  - サンプリングレート: ${audioQuery.outputSamplingRate}Hz`, 'info');
+        
+        // ステップ2: 音声合成
+        log('ステップ2: 音声合成中...', 'info');
+        const synthesisResponse = await fetch(`${VOICEVOX_URL}/synthesis?speaker=${speakerId}&enable_interrogative_upspeak=true`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'accept': 'audio/wav'
+          },
+          body: JSON.stringify(audioQuery)
+        });
+        
+        if (!synthesisResponse.ok) {
+          const errorText = await synthesisResponse.text();
+          log(`❌ 音声合成失敗: ${synthesisResponse.status}`, 'error');
+          log(`エラー内容: ${errorText}`, 'error');
+          throw new Error(`音声合成エラー: ${synthesisResponse.status}`);
+        }
+        
+        const audioBlob = await synthesisResponse.blob();
+        log(`✅ 音声合成成功 (サイズ: ${(audioBlob.size / 1024).toFixed(2)} KB)`, 'success');
+        
+        // ステップ3: 再生
+        log('ステップ3: 音声再生中...', 'info');
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        audio.onended = () => {
+          log('✅ 再生完了', 'success');
+          URL.revokeObjectURL(audioUrl);
+        };
+        
+        audio.onerror = (e) => {
+          log(`❌ 再生エラー: ${e.message || '不明なエラー'}`, 'error');
+          URL.revokeObjectURL(audioUrl);
+        };
+        
+        await audio.play();
+        log('🔊 再生開始！', 'success');
+        
+      } catch (error) {
+        log(`❌ テスト失敗: ${error.message}`, 'error');
+        log('スタックトレース:', 'error');
+        log(error.stack, 'error');
+      }
+    }
+
+    // ページ読み込み時に自動接続テスト
+    window.onload = async () => {
+      log('🚀 VOICEVOX診断ツール起動', 'info');
+      await testConnection();
+    };
+  </script>
+</body>
+</html>
+

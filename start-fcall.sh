@@ -52,20 +52,33 @@ else
     echo "💾 サーバーPIDを保存しました: $SERVER_PID"
 fi
 
+# VOICEVOXの状態を確認
+echo ""
+echo "🎤 VOICEVOX音声エンジンの状態を確認中..."
+if curl -s http://localhost:50021/speakers >/dev/null 2>&1; then
+  echo "✅ VOICEVOXは既に起動しています"
+else
+  echo "⚠️  VOICEVOXが起動していません"
+  echo "📋 VOICEVOXを使用する場合は以下を実行してください:"
+  echo "   ./start-voicevox.sh"
+  echo "   または手動で: open -a VOICEVOX"
+fi
+
 # 少し待機してからブラウザを開く
 sleep 1
 
 # ブラウザで各画面を開く
+echo ""
 echo "🌐 ブラウザで各画面を開いています..."
 
 # ローカルホストのURL
 BASE_URL="https://localhost:3443"
 
-# 使用するブラウザを検出（優先順位: Chrome > Safari > Edge > デフォルト）
-if [ -d "/Applications/Google Chrome.app" ]; then
-    BROWSER="Google Chrome"
-elif [ -d "/Applications/Safari.app" ]; then
+# 使用するブラウザを検出（優先順位: Safari > Chrome > Edge > デフォルト）
+if [ -d "/Applications/Safari.app" ]; then
     BROWSER="Safari"
+elif [ -d "/Applications/Google Chrome.app" ]; then
+    BROWSER="Google Chrome"
 elif [ -d "/Applications/Microsoft Edge.app" ]; then
     BROWSER="Microsoft Edge"
 else

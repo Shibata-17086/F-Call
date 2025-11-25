@@ -5,6 +5,19 @@ const getServerUrl = () => {
   return `https://${currentHost}:${port}`;
 };
 
+// グローバルエラーハンドラ（ブラウザ拡張機能のエラーを無視）
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason && event.reason.message && 
+      (event.reason.message.includes('Could not establish connection') ||
+       event.reason.message.includes('Receiving end does not exist') ||
+       event.reason.message.includes('Extension context invalidated'))) {
+    console.log('ℹ️ ブラウザ拡張機能のエラーを無視:', event.reason.message);
+    event.preventDefault();
+    return;
+  }
+  console.error('❌ 未処理のPromiseエラー:', event.reason);
+});
+
 const socket = io(getServerUrl());
 
 document.addEventListener('DOMContentLoaded', () => {
