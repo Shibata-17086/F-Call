@@ -238,7 +238,7 @@ let statistics = {
 
 // 表示設定
 let showEstimatedWaitTime = false;  // 初期値: 表示しない
-let showPersonalStatus = true;
+let showPersonalStatus = false;
 
 // 音声設定の永続化ファイルパス
 const VOICE_SETTINGS_FILE = path.join(__dirname, 'voice_settings.json');

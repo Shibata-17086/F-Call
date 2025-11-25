@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let statistics = { averageWaitTime: 5 };
   let lastIssuedNumber = null;
   let showEstimatedWaitTime = true;
-  let showPersonalStatus = true;
+  let showPersonalStatus = false;
 
   function updateDisplays() {
     waitingCountDisplay.textContent = tickets.length;
@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
     issuedHistory = Array.isArray(data.issuedHistory) ? data.issuedHistory : [];
     statistics = data.statistics || { averageWaitTime: 5 };
     showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
-    showPersonalStatus = data.showPersonalStatus !== undefined ? data.showPersonalStatus : true;
+    showPersonalStatus = data.showPersonalStatus !== undefined ? data.showPersonalStatus : false;
     updateDisplays();
   });
 
@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
     issuedHistory = Array.isArray(data.issuedHistory) ? data.issuedHistory : [];
     statistics = data.statistics || { averageWaitTime: 5 };
     showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
-    showPersonalStatus = data.showPersonalStatus !== undefined ? data.showPersonalStatus : true;
+    showPersonalStatus = data.showPersonalStatus !== undefined ? data.showPersonalStatus : false;
     updateDisplays();
   });
 

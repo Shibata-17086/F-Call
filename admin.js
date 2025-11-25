@@ -622,7 +622,7 @@ let statistics = { averageWaitTime: 5, averageSessionTime: 10 };
 let currentDate = '';
 let networkInfo = [];
 let showEstimatedWaitTime = false;  // 初期値: 表示しない
-let showPersonalStatus = true;
+let showPersonalStatus = false;
 
 function updateDisplay() {
   // ネットワーク情報の更新
@@ -1164,7 +1164,7 @@ socket.on('init', (data) => {
   currentDate = data.currentDate || '';
   networkInfo = data.networkInfo || [];
   showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
-  showPersonalStatus = data.showPersonalStatus !== undefined ? data.showPersonalStatus : true;
+  showPersonalStatus = data.showPersonalStatus !== undefined ? data.showPersonalStatus : false;
   
   // 音声設定を受信（サーバーの設定で上書き）
   if (data.voiceSettings) {
@@ -1199,7 +1199,7 @@ socket.on('update', (data) => {
   currentDate = data.currentDate || '';
   networkInfo = data.networkInfo || [];
   showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
-  showPersonalStatus = data.showPersonalStatus !== undefined ? data.showPersonalStatus : true;
+  showPersonalStatus = data.showPersonalStatus !== undefined ? data.showPersonalStatus : false;
   updateDisplay();
 });
 
