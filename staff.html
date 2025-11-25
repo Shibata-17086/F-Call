@@ -2,14 +2,23 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>F-Call スタッフ用画面</title>
   <link rel="stylesheet" href="styles.css">
   <style>
     /* ===== display.html基準のデザイン ===== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
     html, body {
+      width: 100%;
       height: 100%;
       overflow: hidden;
+      margin: 0;
+      padding: 0;
     }
     
     body { 
@@ -20,12 +29,13 @@
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
+      /* セーフエリア対応 */
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
     
     .staff-container { 
-      max-width: 100%;
-      height: 100vh;
-      margin: 0 auto;
+      width: 100%;
+      height: 100%;
       padding: 12px;
       display: flex;
       flex-direction: column;
@@ -47,14 +57,22 @@
       flex-shrink: 0;
     }
     
-    /* メインコンテンツ - 3カラム */
+    /* メインコンテンツ - 2カラム */
     .main-content {
       display: grid;
-      grid-template-columns: auto 1fr auto;
-      grid-template-rows: auto 1fr;
+      grid-template-columns: 1fr 280px;
+      grid-template-rows: 60px 1fr;
       gap: 12px;
       flex: 1;
       min-height: 0;
+      width: 100%;
+    }
+    
+    /* 横画面対応 - 履歴を25%幅に */
+    @media (orientation: landscape) {
+      .main-content {
+        grid-template-columns: 1fr minmax(280px, 25%);
+      }
     }
     
     /* セクション共通 */
@@ -82,16 +100,14 @@
     
     /* 発券セクション */
     #ticketSection {
-      grid-column: 1 / 3;
+      grid-column: 1;
       grid-row: 2;
     }
     
     /* 履歴セクション */
     #historySection {
-      grid-column: 3;
+      grid-column: 2;
       grid-row: 1 / 3;
-      width: 300px;
-      max-width: 300px;
     }
     
     /* 番号リスト */
@@ -238,14 +254,18 @@
       line-height: 1.3;
     }
     
-    /* ===== 座席状況 ===== */
+    /* ===== 座席状況 - 固定高さ ===== */
     #seat-status {
-      grid-column: 1 / 3;
+      grid-column: 1;
       grid-row: 1;
+      height: 60px;
+      min-height: 60px;
+      max-height: 60px;
       padding: 10px 14px !important;
       flex-direction: row !important;
       align-items: center;
       gap: 14px;
+      overflow: hidden;
     }
     
     #seat-status h3 {
@@ -258,7 +278,7 @@
   </style>
 </head>
 <body>
-  <div class="staff-container" style="position: relative;">
+  <div class="staff-container">
     <h1>F-Call スタッフ画面</h1>
     
     <div class="reset-section">
@@ -274,9 +294,9 @@
       </div>
       
       <div class="section" id="historySection">
-        <h2>呼び出し履歴</h2>
-        <div id="historyList" class="history-list"></div>
-      </div>
+      <h2>呼び出し履歴</h2>
+      <div id="historyList" class="history-list"></div>
+    </div>
     </div>
     
     <div id="debugPanel" class="debug-panel" style="display: none;">
