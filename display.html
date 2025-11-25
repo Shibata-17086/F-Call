@@ -311,6 +311,49 @@
       min-height: 0;
     }
     
+    .skipped-section {
+      background: #fff8e1;
+      border: 1px solid #ffe0b2;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .skipped-title {
+      font-size: 1.6rem;
+      color: #c77600;
+      margin: 0 0 0.5rem 0;
+      font-weight: 500;
+    }
+    
+    .skipped-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    
+    .skipped-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.9rem;
+      border-radius: 999px;
+      background: #ffe7ba;
+      color: #a05a00;
+      border: 1px solid rgba(0,0,0,0.05);
+      font-size: 1rem;
+      font-weight: 500;
+    }
+    
+    .skipped-chip .skipped-number {
+      font-weight: 700;
+    }
+    
+    .skipped-chip .skipped-time {
+      font-size: 0.85rem;
+      opacity: 0.8;
+    }
+    
     .history-title { 
       font-size: 2rem; 
       margin-bottom: 1rem; 
@@ -531,6 +574,10 @@
     
     <div class="history-section">
       <h2 class="history-title">最近お呼びした番号</h2>
+      <div id="skippedSection" class="skipped-section" style="display:none;">
+        <div class="skipped-title">欠番</div>
+        <div id="skippedList" class="skipped-list"></div>
+      </div>
       <div id="historyList" class="history-list"></div>
     </div>
   </div>

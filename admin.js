@@ -31,6 +31,7 @@ const currentNumber = document.getElementById('currentNumber');
 const waitMinutesInput = document.getElementById('waitMinutesInput');
 const setWaitMinutesBtn = document.getElementById('setWaitMinutesBtn');
 const toggleEstimatedWait = document.getElementById('toggleEstimatedWait');
+const togglePersonalStatus = document.getElementById('togglePersonalStatus');
 const clearTickets = document.getElementById('clearTickets');
 const clearIssuedHistory = document.getElementById('clearIssuedHistory');
 const clearHistory = document.getElementById('clearHistory');
@@ -621,6 +622,7 @@ let statistics = { averageWaitTime: 5, averageSessionTime: 10 };
 let currentDate = '';
 let networkInfo = [];
 let showEstimatedWaitTime = false;  // 初期値: 表示しない
+let showPersonalStatus = true;
 
 function updateDisplay() {
   // ネットワーク情報の更新
@@ -728,10 +730,17 @@ function updateDisplay() {
     const div = document.createElement('div');
     div.className = 'history-item';
     const priorityLabel = getPriorityLabel(ticket.priority);
+    if (ticket.skipped) {
+      div.style.cssText += 'background: #fff3e0; border-left: 4px solid #ff9800;';
+    }
+    const skippedInfo = ticket.skipped
+      ? `<div style="font-size:0.85rem;color:#e65100;font-weight:bold;">⚠️ 欠番${ticket.skipTime ? ` (${ticket.skipTime})` : ''}</div>`
+      : '';
     div.innerHTML = `
       <div style="font-size:1.2rem;font-weight:bold;">${ticket.number}</div>
       <div style="font-size:0.9rem;color:#888;">${ticket.time}</div>
       <div style="font-size:0.8rem;color:#1565c0;">${priorityLabel}</div>
+      ${skippedInfo}
     `;
     issuedHistoryList.appendChild(div);
   });
@@ -844,6 +853,10 @@ function updateDisplay() {
 
   if (toggleEstimatedWait && toggleEstimatedWait.checked !== showEstimatedWaitTime) {
     toggleEstimatedWait.checked = showEstimatedWaitTime;
+  }
+
+  if (togglePersonalStatus && togglePersonalStatus.checked !== showPersonalStatus) {
+    togglePersonalStatus.checked = showPersonalStatus;
   }
 
   console.log('admin update', tickets, issuedHistory);
@@ -1151,6 +1164,7 @@ socket.on('init', (data) => {
   currentDate = data.currentDate || '';
   networkInfo = data.networkInfo || [];
   showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
+  showPersonalStatus = data.showPersonalStatus !== undefined ? data.showPersonalStatus : true;
   
   // 音声設定を受信（サーバーの設定で上書き）
   if (data.voiceSettings) {
@@ -1185,6 +1199,7 @@ socket.on('update', (data) => {
   currentDate = data.currentDate || '';
   networkInfo = data.networkInfo || [];
   showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
+  showPersonalStatus = data.showPersonalStatus !== undefined ? data.showPersonalStatus : true;
   updateDisplay();
 });
 
@@ -1264,6 +1279,12 @@ setWaitMinutesBtn.onclick = () => {
 if (toggleEstimatedWait) {
   toggleEstimatedWait.onchange = () => {
     socket.emit('admin:setEstimatedWaitVisibility', toggleEstimatedWait.checked);
+  };
+}
+
+if (togglePersonalStatus) {
+  togglePersonalStatus.onchange = () => {
+    socket.emit('admin:setPersonalStatusVisibility', togglePersonalStatus.checked);
   };
 }
 

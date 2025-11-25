@@ -218,6 +218,7 @@ console.log('🌐 Expressミドルウェアを設定しました');
 let tickets = []; // [{number, time, priority, estimatedWaitTime}]
 let issuedHistory = []; // [{number, time, date}]
 let calledHistory = []; // [{number, seat, time, actualWaitTime}]
+let skippedTickets = []; // [{number, time, priority}]
 let currentCall = null; // {number, seat, time}
 let seats = [
   { id: '1', name: '1番ユニット', number: '1', unit: 'ユニット', status: 'available', currentPatient: null, sessionStartTime: null },
@@ -237,6 +238,7 @@ let statistics = {
 
 // 表示設定
 let showEstimatedWaitTime = false;  // 初期値: 表示しない
+let showPersonalStatus = true;
 
 // 音声設定の永続化ファイルパス
 const VOICE_SETTINGS_FILE = path.join(__dirname, 'voice_settings.json');
@@ -357,6 +359,7 @@ function checkDateReset() {
     tickets = [];
     calledHistory = [];
     currentCall = null;
+    skippedTickets = [];
     
     // 座席をリセット
     seats.forEach(seat => {
@@ -422,6 +425,8 @@ function sendUpdate() {
     currentDate,
     networkInfo,
     showEstimatedWaitTime,
+    showPersonalStatus,
+    skippedTickets,
     voiceSettings
   });
 }
@@ -447,6 +452,8 @@ io.on('connection', (socket) => {
       currentDate,
       networkInfo,
       showEstimatedWaitTime,
+      showPersonalStatus,
+      skippedTickets,
       voiceSettings
     });
     
@@ -514,6 +521,108 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error(`❌ 発券エラー (${socket.id}):`, error);
       socket.emit('error', { message: '発券処理中にエラーが発生しました' });
+    }
+  });
+
+  // 直前の発券を取り消し
+  socket.on('undoLastTicket', () => {
+    console.log(`📥 undoLastTicket リクエスト受信 (${socket.id})`);
+    console.log(`   issuedHistory.length: ${issuedHistory.length}`);
+    console.log(`   dailyTicketCount: ${dailyTicketCount}`);
+    console.log(`   tickets.length: ${tickets.length}`);
+    
+    try {
+      if (issuedHistory.length === 0) {
+        console.log('❌ 取り消し失敗: 発券履歴が空');
+        socket.emit('undoTicketFailed', { message: '取り消せる発券履歴がありません。' });
+        return;
+      }
+
+      const lastTicket = issuedHistory[0];
+      console.log(`   lastTicket: ${JSON.stringify(lastTicket)}`);
+
+      if (dailyTicketCount !== lastTicket.number) {
+        console.log(`❌ 取り消し失敗: 最新番号不一致 (dailyTicketCount=${dailyTicketCount}, lastTicket.number=${lastTicket.number})`);
+        socket.emit('undoTicketFailed', { message: '最新の番号以外は取り消せません。' });
+        return;
+      }
+
+      const ticketIndex = tickets.findIndex(t => t.number === lastTicket.number);
+      console.log(`   ticketIndex: ${ticketIndex}`);
+      
+      if (ticketIndex === -1) {
+        console.log(`❌ 取り消し失敗: 番号${lastTicket.number}は既に呼び出し済み`);
+        socket.emit('undoTicketFailed', { message: `番号${lastTicket.number}は既に呼び出し済みのため取り消せません。` });
+        return;
+      }
+
+      tickets.splice(ticketIndex, 1);
+      issuedHistory.shift();
+      dailyTicketCount = Math.max(0, dailyTicketCount - 1);
+
+      tickets.forEach((t, index) => {
+        t.estimatedWaitTime = calculateWaitTime(index + 1);
+      });
+
+      const previousNumber = issuedHistory.length > 0 ? issuedHistory[0].number : null;
+
+      console.log(`✅ 取り消し成功: ${lastTicket.number}番 → 前の番号: ${previousNumber ?? 'なし'}`);
+      socket.emit('undoTicketSuccess', {
+        cancelledNumber: lastTicket.number,
+        previousNumber
+      });
+
+      console.log(`↩️ 発券取り消し完了: ${lastTicket.number}番 → 前の番号: ${previousNumber ?? 'なし'}`);
+      sendUpdate();
+    } catch (error) {
+      console.error('❌ 発券取り消しエラー:', error);
+      socket.emit('undoTicketFailed', { message: '取り消し処理中にエラーが発生しました。' });
+    }
+  });
+
+  // 欠番処理（呼び出しスキップ）
+  socket.on('skipTicket', ({ number }) => {
+    try {
+      const targetNumber = Number(number);
+      if (!targetNumber) {
+        socket.emit('skipFailed', { message: '欠番にする番号が正しくありません。' });
+        return;
+      }
+
+      const ticketIndex = tickets.findIndex(t => t.number === targetNumber);
+      if (ticketIndex === -1) {
+        socket.emit('skipFailed', { message: `番号${targetNumber}は待ち列にありません。` });
+        return;
+      }
+
+      const skippedTicket = tickets.splice(ticketIndex, 1)[0];
+      const skipTime = formatTime(new Date());
+
+      const issuedIndex = issuedHistory.findIndex(t => t.number === skippedTicket.number);
+      if (issuedIndex !== -1) {
+        issuedHistory[issuedIndex].skipped = true;
+        issuedHistory[issuedIndex].skipTime = skipTime;
+      }
+
+      skippedTickets.unshift({
+        number: skippedTicket.number,
+        time: skipTime,
+        priority: skippedTicket.priority
+      });
+      if (skippedTickets.length > 10) {
+        skippedTickets = skippedTickets.slice(0, 10);
+      }
+
+      tickets.forEach((t, index) => {
+        t.estimatedWaitTime = calculateWaitTime(index + 1);
+      });
+
+      socket.emit('skipSuccess', { number: skippedTicket.number });
+      console.log(`⏭️ 欠番処理: ${skippedTicket.number}番をスキップ`);
+      sendUpdate();
+    } catch (error) {
+      console.error('❌ 欠番処理エラー:', error);
+      socket.emit('skipFailed', { message: '欠番処理中にエラーが発生しました。' });
     }
   });
 
@@ -687,6 +796,7 @@ io.on('connection', (socket) => {
     calledHistory = [];
     currentCall = null;
     dailyTicketCount = 0;
+    skippedTickets = [];
     
     // 座席をリセット
     seats.forEach(seat => {
@@ -705,6 +815,7 @@ io.on('connection', (socket) => {
   });
   socket.on('admin:clearIssuedHistory', () => {
     issuedHistory = [];
+    skippedTickets = [];
     sendUpdate();
   });
   socket.on('admin:clearHistory', () => {
@@ -749,6 +860,14 @@ io.on('connection', (socket) => {
     const nextValue = Boolean(visible);
     if (showEstimatedWaitTime !== nextValue) {
       showEstimatedWaitTime = nextValue;
+      sendUpdate();
+    }
+  });
+
+  socket.on('admin:setPersonalStatusVisibility', (visible) => {
+    const nextValue = Boolean(visible);
+    if (showPersonalStatus !== nextValue) {
+      showPersonalStatus = nextValue;
       sendUpdate();
     }
   });

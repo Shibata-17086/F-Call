@@ -34,6 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const waitingCountCard = document.getElementById('waitingCountCard');
   const estimatedWait = document.getElementById('estimatedWait');
   const estimatedWaitCard = document.getElementById('estimatedWaitCard');
+  const skippedSection = document.getElementById('skippedSection');
+  const skippedList = document.getElementById('skippedList');
 
   let calledHistory = [];
   let currentCall = null;
@@ -42,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let showEstimatedWaitTime = false;  // 初期値: 表示しない
   let lastCallNumber = null;
   let lastCallSeat = null;
+  let skippedNumbers = [];
   
   // 音声設定（サーバーから受信）
   // 注: O-Ren使用時はpitchが1.3に自動調整されます
@@ -945,14 +948,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateWaitingInfo();
     updateHistoryDisplay();
+    updateSkippedList();
   }
 
   function updateHistoryDisplay() {
     historyList.innerHTML = '';
     
     // 現在の呼び出しを履歴の最上位に表示
-    let displayHistory = [...calledHistory];
-    if (currentCall && currentCall.number) {
+    const skippedSet = new Set((skippedNumbers || []).map(item => item.number));
+    let displayHistory = (calledHistory || []).filter(item => !skippedSet.has(item.number));
+    if (currentCall && currentCall.number && !skippedSet.has(currentCall.number)) {
       const existsInHistory = calledHistory.some(item => 
         item.number === currentCall.number && 
         item.seat && item.seat.id === currentCall.seat.id
@@ -997,6 +1002,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function updateSkippedList() {
+    if (!skippedSection || !skippedList) return;
+    
+    if (!skippedNumbers || skippedNumbers.length === 0) {
+      skippedSection.style.display = 'none';
+      skippedList.innerHTML = '';
+      return;
+    }
+    
+    skippedSection.style.display = 'block';
+    skippedList.innerHTML = '';
+    
+    skippedNumbers.slice(0, 6).forEach(item => {
+      const chip = document.createElement('div');
+      chip.className = 'skipped-chip';
+      const timeText = item.time ? item.time.split(' ')[1] || item.time : '';
+      chip.innerHTML = `
+        <span class="skipped-number">No.${item.number}</span>
+        <span class="skipped-time">${timeText}</span>
+      `;
+      skippedList.appendChild(chip);
+    });
+  }
+
   // 音声設定を更新する共通関数
   const updateVoiceSettings = (settings) => {
     if (!settings) {
@@ -1030,6 +1059,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tickets = data.tickets || [];
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
     showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
+    skippedNumbers = data.skippedTickets || [];
     updateVoiceSettings(data.voiceSettings);
     updateDisplay();
   });
@@ -1040,6 +1070,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tickets = data.tickets || [];
     waitMinutesPerPerson = data.waitMinutesPerPerson || 5;
     showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
+    skippedNumbers = data.skippedTickets || [];
     updateVoiceSettings(data.voiceSettings);
     updateDisplay();
   });

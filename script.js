@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const waitingTimeDisplay = document.getElementById('waiting-time');
   const issueTicketButton = document.getElementById('issue-ticket');
   const prioritySelect = document.getElementById('priority-select');
+  const undoTicketButton = document.getElementById('undo-ticket');
+  const ticketStatusSection = document.getElementById('ticket-status');
   const estimatedTimeDisplay = document.getElementById('estimated-time');
   const queuePositionDisplay = document.getElementById('queue-position');
   const waitingTimeRow = waitingTimeDisplay ? waitingTimeDisplay.closest('.queue-info') : null;
@@ -37,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let statistics = { averageWaitTime: 5 };
   let lastIssuedNumber = null;
   let showEstimatedWaitTime = true;
+  let showPersonalStatus = true;
 
   function updateDisplays() {
     waitingCountDisplay.textContent = tickets.length;
@@ -91,6 +94,16 @@ document.addEventListener('DOMContentLoaded', () => {
       estimatedTimeRow.style.display = showEstimatedWaitTime ? 'block' : 'none';
     }
 
+    if (ticketStatusSection) {
+      if (!showPersonalStatus) {
+        ticketStatusSection.style.display = 'none';
+      } else if (lastIssuedNumber || issuedHistory.length > 0) {
+        ticketStatusSection.style.display = 'block';
+      } else {
+        ticketStatusSection.style.display = 'none';
+      }
+    }
+
     if (lastIssuedNumber && estimatedTimeDisplay && queuePositionDisplay) {
       const myTicket = tickets.find(t => t.number === lastIssuedNumber);
       if (myTicket) {
@@ -106,6 +119,10 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (estimatedTimeDisplay) {
       estimatedTimeDisplay.textContent = showEstimatedWaitTime ? '---' : '';
     }
+
+    if (undoTicketButton) {
+      undoTicketButton.disabled = issuedHistory.length === 0;
+    }
   }
 
   socket.on('init', (data) => {
@@ -113,6 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
     issuedHistory = Array.isArray(data.issuedHistory) ? data.issuedHistory : [];
     statistics = data.statistics || { averageWaitTime: 5 };
     showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
+    showPersonalStatus = data.showPersonalStatus !== undefined ? data.showPersonalStatus : true;
     updateDisplays();
   });
 
@@ -121,6 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
     issuedHistory = Array.isArray(data.issuedHistory) ? data.issuedHistory : [];
     statistics = data.statistics || { averageWaitTime: 5 };
     showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : true;
+    showPersonalStatus = data.showPersonalStatus !== undefined ? data.showPersonalStatus : true;
     updateDisplays();
   });
 
@@ -129,17 +148,66 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.emit('issueTicket', { priority });
   });
 
+  if (undoTicketButton) {
+    undoTicketButton.addEventListener('click', () => {
+      console.log('🔄 取り消しボタンがクリックされました');
+      console.log('📋 issuedHistory:', issuedHistory);
+      
+      if (issuedHistory.length === 0) {
+        alert('取り消せる番号がありません');
+        return;
+      }
+      const latestNumber = issuedHistory[0]?.number;
+      console.log('📋 latestNumber:', latestNumber);
+      
+      if (!latestNumber) {
+        alert('取り消せる番号がありません');
+        return;
+      }
+      if (!confirm(`直前に発券した番号 ${latestNumber} を取り消しますか？`)) {
+        return;
+      }
+      undoTicketButton.disabled = true;
+      console.log('📤 undoLastTicket イベントを送信');
+      socket.emit('undoLastTicket');
+    });
+  } else {
+    console.error('❌ undo-ticket ボタンが見つかりません');
+  }
+
   // 発券成功時のイベントを受信
   socket.on('ticketIssued', (data) => {
     lastIssuedNumber = data.number;
     
     // 個人状況セクションを表示
-    const ticketStatusSection = document.getElementById('ticket-status');
-    if (ticketStatusSection) {
+    if (ticketStatusSection && showPersonalStatus) {
       ticketStatusSection.style.display = 'block';
     }
     
     updateDisplays();
+  });
+
+  socket.on('undoTicketSuccess', (data = {}) => {
+    const cancelledNumber = data.cancelledNumber;
+    const previousNumber = data.previousNumber;
+
+    // ローカル状態を即時更新
+    tickets = tickets.filter(t => t.number !== cancelledNumber);
+    issuedHistory = issuedHistory.filter(t => t.number !== cancelledNumber);
+    lastIssuedNumber = previousNumber || null;
+
+    updateDisplays();
+    alert(`番号${cancelledNumber}の発券を取り消しました。`);
+    if (undoTicketButton) {
+      undoTicketButton.disabled = false;
+    }
+  });
+
+  socket.on('undoTicketFailed', (data = {}) => {
+    alert(data.message || '取り消しに失敗しました。');
+    if (undoTicketButton) {
+      undoTicketButton.disabled = false;
+    }
   });
 
   // エラーハンドリング
