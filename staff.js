@@ -221,11 +221,11 @@ document.addEventListener('DOMContentLoaded', () => {
         buttonRow.appendChild(callBtn);
 
         const skipBtn = document.createElement('button');
-        skipBtn.textContent = '欠番にする';
+        skipBtn.textContent = 'スキップ';
         skipBtn.className = 'btn danger';
         skipBtn.style.cssText = 'flex:1; padding:0.5rem;';
         skipBtn.onclick = () => {
-          if (confirm(`番号${ticket.number}を欠番としてスキップしますか？\n待合室表示には呼び出しとして表示されません。`)) {
+          if (confirm(`番号${ticket.number}をスキップしますか？\n待合室表示には呼び出しとして表示されません。`)) {
             socket.emit('skipTicket', { number: ticket.number });
           }
         };
@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 欠番処理の結果
   socket.on('skipSuccess', ({ number }) => {
-    showDebug(`欠番に設定: ${number}`);
+    showDebug(`スキップ: ${number}`);
     const msg = document.createElement('div');
     msg.style.cssText = `
       position: fixed;
@@ -483,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
       z-index: 1000;
       font-size: 1.1rem;
     `;
-    msg.textContent = `⏭️ 番号${number}を欠番にしました`;
+    msg.textContent = `⏭️ 番号${number}をスキップしました`;
     document.body.appendChild(msg);
     setTimeout(() => {
       if (msg.parentNode) {
@@ -493,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   socket.on('skipFailed', (data = {}) => {
-    alert(data.message || '欠番処理に失敗しました。');
+    alert(data.message || 'スキップ処理に失敗しました。');
   });
 
   resetAllBtn.onclick = () => {

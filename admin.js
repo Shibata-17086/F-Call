@@ -734,7 +734,7 @@ function updateDisplay() {
       div.style.cssText += 'background: #fff3e0; border-left: 4px solid #ff9800;';
     }
     const skippedInfo = ticket.skipped
-      ? `<div style="font-size:0.85rem;color:#e65100;font-weight:bold;">⚠️ 欠番${ticket.skipTime ? ` (${ticket.skipTime})` : ''}</div>`
+      ? `<div style="font-size:0.85rem;color:#e65100;font-weight:bold;">⚠️ スキップ${ticket.skipTime ? ` (${ticket.skipTime})` : ''}</div>`
       : '';
     div.innerHTML = `
       <div style="font-size:1.2rem;font-weight:bold;">${ticket.number}</div>

@@ -955,9 +955,12 @@ document.addEventListener('DOMContentLoaded', () => {
     historyList.innerHTML = '';
     
     // 現在の呼び出しを履歴の最上位に表示
-    const skippedSet = new Set((skippedNumbers || []).map(item => item.number));
-    let displayHistory = (calledHistory || []).filter(item => !skippedSet.has(item.number));
-    if (currentCall && currentCall.number && !skippedSet.has(currentCall.number)) {
+    const skippedSet = new Set((skippedNumbers || []).map(item => Number(item.number)));
+    let displayHistory = (calledHistory || []).filter(item => {
+      const num = Number(item.number);
+      return !item.skipped && !skippedSet.has(num);
+    });
+    if (currentCall && currentCall.number && !skippedSet.has(Number(currentCall.number))) {
       const existsInHistory = calledHistory.some(item => 
         item.number === currentCall.number && 
         item.seat && item.seat.id === currentCall.seat.id

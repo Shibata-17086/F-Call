@@ -580,12 +580,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 欠番処理（呼び出しスキップ）
+  // スキップ処理（呼び出しスキップ）
   socket.on('skipTicket', ({ number }) => {
     try {
       const targetNumber = Number(number);
       if (!targetNumber) {
-        socket.emit('skipFailed', { message: '欠番にする番号が正しくありません。' });
+        socket.emit('skipFailed', { message: 'スキップする番号が正しくありません。' });
         return;
       }
 
@@ -618,11 +618,11 @@ io.on('connection', (socket) => {
       });
 
       socket.emit('skipSuccess', { number: skippedTicket.number });
-      console.log(`⏭️ 欠番処理: ${skippedTicket.number}番をスキップ`);
+      console.log(`⏭️ スキップ処理: ${skippedTicket.number}番をスキップ`);
       sendUpdate();
     } catch (error) {
-      console.error('❌ 欠番処理エラー:', error);
-      socket.emit('skipFailed', { message: '欠番処理中にエラーが発生しました。' });
+      console.error('❌ スキップ処理エラー:', error);
+      socket.emit('skipFailed', { message: 'スキップ処理中にエラーが発生しました。' });
     }
   });
 
