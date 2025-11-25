@@ -46,18 +46,20 @@ document.addEventListener('DOMContentLoaded', () => {
   let seats = [];
   let showEstimatedWaitTime = false;  // 初期値: 表示しない
 
-  // デバッグ情報を表示
+  // デバッグ情報を記録（パネルは自動表示しない）
   function showDebug(message) {
     const timestamp = new Date().toLocaleTimeString();
     const logEntry = document.createElement('div');
     logEntry.textContent = `${timestamp}: ${message}`;
     debugInfo.appendChild(logEntry);
     
-    // スクロールを最新に
-    debugInfo.scrollTop = debugInfo.scrollHeight;
+    // スクロールを最新に（表示されている場合のみ）
+    if (debugPanel.style.display === 'block') {
+      debugInfo.scrollTop = debugInfo.scrollHeight;
+    }
     
-    // デバッグパネルを表示
-    debugPanel.style.display = 'block';
+    // デバッグパネルは自動表示しない（Ctrl+Shift+Dで手動表示可能）
+    // debugPanel.style.display = 'block';
     
     console.log(message);
   }
