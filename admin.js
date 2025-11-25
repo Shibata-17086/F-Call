@@ -873,16 +873,19 @@ function updateNetworkInfo() {
     return;
   }
   
+  // 最初の1つのIPアドレスのみを使用
+  const networkInfoToUse = [networkInfo[0]];
+  
   let html = '<div style="margin-bottom: 1rem;">';
   html += '<div style="font-weight: bold; margin-bottom: 0.5rem; color: #1565c0;">同一LAN内からアクセス可能なURL:</div>';
   
-  networkInfo.forEach((info, index) => {
+  networkInfoToUse.forEach((info, index) => {
     const baseUrl = info.url;
     html += `<div style="margin-bottom: 1rem; padding: 1rem; background: white; border-radius: 5px; border: 1px solid #ddd;">`;
     html += `<div style="font-weight: bold; margin-bottom: 0.8rem; color: #333; font-size: 1.1rem;">📡 ${info.address} <span style="font-size: 0.85rem; font-weight: normal; color: #666;">(${info.interface})</span></div>`;
-    html += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0.8rem; font-size: 0.95rem;">`;
+    html += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.8rem; font-size: 0.95rem;">`;
     
-    // 各画面のURLを表示（クリックでコピー可能）
+    // 各画面のURLを表示（クリックでコピー可能 + QRコード）
     const pages = [
       { name: '管理画面', path: 'admin.html' },
       { name: '受付画面', path: 'index.html' },
@@ -890,14 +893,17 @@ function updateNetworkInfo() {
       { name: '待合室表示', path: 'display.html' }
     ];
     
-    pages.forEach(page => {
+    pages.forEach((page, pageIndex) => {
       const url = `${baseUrl}/${page.path}`;
-      html += `<div style="padding: 0.5rem; background: #f5f5f5; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">`;
-      html += `<div style="flex: 1;">`;
+      const qrId = `qr-${index}-${pageIndex}`;
+      
+      html += `<div style="padding: 0.8rem; background: #f5f5f5; border-radius: 4px; display: flex; flex-direction: column; gap: 0.5rem;">`;
       html += `<div style="font-weight: bold; margin-bottom: 0.2rem; color: #333;">${page.name}:</div>`;
-      html += `<div style="color: #1976d2; font-family: monospace; font-size: 0.85rem; word-break: break-all;">${url}</div>`;
+      html += `<div style="color: #1976d2; font-family: monospace; font-size: 0.85rem; word-break: break-all; margin-bottom: 0.5rem;">${url}</div>`;
+      html += `<div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">`;
+      html += `<button onclick="navigator.clipboard.writeText('${url}').then(() => alert('URLをコピーしました: ${url}')).catch(() => prompt('URLをコピーしてください:', '${url}'))" style="padding: 0.3rem 0.6rem; background: #1976d2; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">コピー</button>`;
+      html += `<div id="${qrId}" style="display: inline-block; padding: 0.5rem; background: white; border-radius: 4px; border: 1px solid #ddd;"></div>`;
       html += `</div>`;
-      html += `<button onclick="navigator.clipboard.writeText('${url}').then(() => alert('URLをコピーしました: ${url}')).catch(() => prompt('URLをコピーしてください:', '${url}'))" style="margin-left: 0.5rem; padding: 0.3rem 0.6rem; background: #1976d2; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">コピー</button>`;
       html += `</div>`;
     });
     
@@ -911,6 +917,172 @@ function updateNetworkInfo() {
   html += '</div>';
   
   networkInfoElement.innerHTML = html;
+  
+  // DOMが更新されるのを待ってからQRコードを生成
+  setTimeout(() => {
+    generateQRCodes(networkInfoToUse);
+  }, 100);
+}
+
+// QRコード生成関数（qrcode-generatorライブラリ用）
+function generateQRCodes(networkInfo) {
+  // qrcode-generatorライブラリが読み込まれているか確認
+  if (typeof qrcode === 'undefined') {
+    console.warn('⚠️ qrcode ライブラリが読み込まれていません。リトライします...');
+    // ライブラリが読み込まれていない場合、リトライ
+    setTimeout(() => {
+      if (typeof qrcode !== 'undefined') {
+        console.log('✅ qrcode ライブラリが読み込まれました。QRコードを生成します。');
+        generateQRCodes(networkInfo);
+      } else {
+        console.error('❌ qrcode ライブラリの読み込みに失敗しました。');
+        // エラーメッセージを表示
+        const networkInfoElement = document.getElementById('networkInfo');
+        if (networkInfoElement) {
+          const errorDiv = document.createElement('div');
+          errorDiv.style.cssText = 'color: #f44336; padding: 1rem; background: #ffebee; border-radius: 4px; margin-top: 1rem;';
+          errorDiv.textContent = '⚠️ QRコードライブラリの読み込みに失敗しました。ページをリロードしてください。';
+          networkInfoElement.appendChild(errorDiv);
+        }
+      }
+    }, 500);
+    return;
+  }
+  
+  console.log('🔵 QRコードを生成中...', 'networkInfo件数:', networkInfo.length);
+  
+  networkInfo.forEach((info, index) => {
+    const baseUrl = info.url;
+    const pages = [
+      { name: '管理画面', path: 'admin.html' },
+      { name: '受付画面', path: 'index.html' },
+      { name: 'スタッフ画面', path: 'staff.html' },
+      { name: '待合室表示', path: 'display.html' }
+    ];
+    
+    pages.forEach((page, pageIndex) => {
+      const url = `${baseUrl}/${page.path}`;
+      const qrId = `qr-${index}-${pageIndex}`;
+      const qrElement = document.getElementById(qrId);
+      
+      if (!qrElement) {
+        console.warn(`QRコード要素が見つかりません: ${qrId}`);
+        return;
+      }
+      
+      // QRコードをクリア
+      qrElement.innerHTML = '';
+      
+      try {
+        // qrcode-generatorを使用してQRコードを生成
+        // typeNumber: 0 = 自動, errorCorrectionLevel: 'L' = 7%
+        const qr = qrcode(0, 'L');
+        qr.addData(url);
+        qr.make();
+        
+        // DataURLを生成（cellSize: 3, margin: 2）
+        const dataUrl = qr.createDataURL(3, 2);
+        
+        // 画像要素を作成
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.style.cssText = 'display: block; cursor: pointer; border: 1px solid #ddd; border-radius: 4px; width: 100px; height: 100px;';
+        img.title = 'クリックで拡大表示';
+        img.alt = `${page.name}のQRコード`;
+        
+        // クリックでQRコードを大きく表示
+        img.onclick = () => {
+          showQRModal(page.name, url);
+        };
+        
+        qrElement.appendChild(img);
+        console.log(`✅ QRコード生成成功: ${page.name} (${url})`);
+        
+      } catch (error) {
+        console.error(`❌ QRコード生成エラー (${url}):`, error);
+        qrElement.innerHTML = '<span style="font-size: 0.7rem; color: #999;">QR生成失敗</span>';
+      }
+    });
+  });
+}
+
+// QRコードモーダル表示関数
+function showQRModal(pageName, url) {
+  // モーダルでQRコードを大きく表示
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    cursor: pointer;
+  `;
+  
+  const modalContent = document.createElement('div');
+  modalContent.style.cssText = `
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    text-align: center;
+    position: relative;
+    max-width: 90%;
+  `;
+  
+  const title = document.createElement('div');
+  title.textContent = pageName;
+  title.style.cssText = 'font-weight: bold; font-size: 1.5rem; margin-bottom: 1rem; color: #333;';
+  
+  const urlText = document.createElement('div');
+  urlText.textContent = url;
+  urlText.style.cssText = 'font-family: monospace; font-size: 1rem; color: #666; margin-bottom: 1rem; word-break: break-all;';
+  
+  try {
+    // 大きなQRコードを生成
+    const qr = qrcode(0, 'L');
+    qr.addData(url);
+    qr.make();
+    
+    // 大きなDataURLを生成（cellSize: 10, margin: 4）
+    const largeDataUrl = qr.createDataURL(10, 4);
+    
+    const largeImg = document.createElement('img');
+    largeImg.src = largeDataUrl;
+    largeImg.style.cssText = 'display: block; margin: 0 auto; max-width: 100%;';
+    largeImg.alt = `${pageName}のQRコード（拡大）`;
+    
+    modalContent.appendChild(title);
+    modalContent.appendChild(urlText);
+    modalContent.appendChild(largeImg);
+    
+    // 閉じるボタン
+    const closeBtn = document.createElement('div');
+    closeBtn.textContent = 'クリックで閉じる';
+    closeBtn.style.cssText = 'margin-top: 1rem; color: #666; font-size: 0.9rem;';
+    modalContent.appendChild(closeBtn);
+    
+  } catch (error) {
+    console.error('大きなQRコード生成エラー:', error);
+    const errorMsg = document.createElement('div');
+    errorMsg.textContent = 'QRコードの生成に失敗しました';
+    errorMsg.style.cssText = 'color: #f44336; margin-top: 1rem;';
+    modalContent.appendChild(title);
+    modalContent.appendChild(urlText);
+    modalContent.appendChild(errorMsg);
+  }
+  
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+  
+  // クリックで閉じる
+  modal.onclick = () => {
+    document.body.removeChild(modal);
+  };
 }
 
 function updateSeatStatusGrid() {
