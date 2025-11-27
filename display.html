@@ -23,9 +23,10 @@
       grid-template-columns: 1.8fr 1fr;
       grid-template-areas: 
         "header header"
+        "notice notice"
         "current history"
         "current history";
-      grid-template-rows: auto 1fr 1fr;
+      grid-template-rows: auto auto 1fr 1fr;
       gap: 2rem;
       width: 100vw;
       height: 100vh;
@@ -45,6 +46,18 @@
       padding: 1.5rem 2rem;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
       border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .notice-section {
+      grid-area: notice;
+      background: #fff8e1;
+      border: 1px solid #ffe0b2;
+      border-radius: 0.5rem;
+      padding: 1rem 1.5rem;
+      color: #a05a00;
+      font-size: 1.4rem;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     }
 
     .header-info-group {
@@ -140,6 +153,14 @@
       transition: all 0.3s ease;
       flex-shrink: 1;
       min-height: 0;
+    }
+
+    .number-notice {
+      width: 100%;
+      text-align: right;
+      font-size: 1.1rem;
+      color: #a05a00;
+      margin: 0;
     }
     
     .display-number.calling {
@@ -570,6 +591,7 @@
       <div class="display-title">只今お呼びしている番号</div>
       <div id="displayNumber" class="display-number">---</div>
       <div id="displaySeat" class="display-seat">お待ちください</div>
+      <p class="number-notice">診察状況により順番が前後する場合があります。ご了承ください。</p>
     </div>
     
     <div class="history-section">

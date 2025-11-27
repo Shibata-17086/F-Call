@@ -334,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.createElement('div');
     container.id = 'seat-status';
     container.className = 'section';
-    container.style.cssText = 'grid-column:1/3; grid-row:1; display:flex; align-items:center; gap:14px; padding:10px 14px;';
+    // グリッド配置はCSSで設定済み（#seat-status）
     
     const mainContent = document.querySelector('.main-content');
     if (mainContent) {
