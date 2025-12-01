@@ -44,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let calledHistory = [];
   let currentCall = null;
   let seats = [];
+  let skippedTickets = [];  // スキップされた番号
   let showEstimatedWaitTime = false;  // 初期値: 表示しない
 
   // デバッグ情報を記録（パネルは自動表示しない）
@@ -118,6 +119,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     seatStatusContainer.appendChild(seatGrid);
+    
+    // スキップ番号も座席状況エリアに表示
+    if (skippedTickets && skippedTickets.length > 0) {
+      const skipSection = document.createElement('div');
+      skipSection.style.cssText = 'display:flex; align-items:center; gap:8px; margin-left:20px; padding:8px 12px; background:#fff8e1; border-radius:0.5rem; border:1px solid #ffe0b2;';
+      skipSection.innerHTML = '<span style="color:#c77600; font-weight:500;">スキップ:</span>';
+      
+      skippedTickets.slice(0, 5).forEach(skip => {
+        const chip = document.createElement('span');
+        chip.style.cssText = 'display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:999px; background:#ffe7ba; color:#a05a00; font-size:0.9rem; font-weight:600;';
+        chip.textContent = `${skip.number}番`;
+        skipSection.appendChild(chip);
+      });
+      
+      seatStatusContainer.appendChild(skipSection);
+    }
 
     // 発券中リスト
     ticketList.innerHTML = '';
@@ -205,13 +222,17 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         actionBtn.onclick = () => {
+          console.log(`[DEBUG] ボタンクリック: seatSelect.value=${seatSelect.value}, ticket.number=${ticket.number}`);
+          
           if (seatSelect.value === '__skip__') {
-            if (confirm(`${ticket.number}番をスキップしますか？`)) {
-              socket.emit('skipTicket', { number: ticket.number });
-            }
+            // スキップ実行（confirmなしで直接実行）
+            console.log(`[DEBUG] スキップ実行: socket.emit('skipTicket', { number: ${ticket.number} })`);
+            socket.emit('skipTicket', { number: ticket.number });
           } else if (seatSelect.value) {
+            console.log(`[DEBUG] 呼出実行: 番号${ticket.number} → 座席${seatSelect.value}`);
             socket.emit('callNumber', { number: ticket.number, seatId: seatSelect.value });
           } else {
+            console.log(`[DEBUG] 座席未選択`);
             alert('座席を選択してください');
           }
         };
@@ -310,17 +331,21 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelBtn.innerHTML = '取消';
         cancelBtn.style.cssText = 'min-height:48px; padding:10px 18px; font-size:1rem; font-weight:500; border-radius:0.5rem; border:none; background:#dc3545; color:white; cursor:pointer;';
         cancelBtn.onclick = () => {
-          if (confirm(`${item.number}番を取り消しますか？`)) {
-            if (isActive) {
-              socket.emit('cancelCall');
-            } else {
-              const historyIndex = currentCallInHistory ? index : index - 1;
-              socket.emit('cancelHistoryCall', { 
-                number: item.number, 
-                seatId: item.seat ? item.seat.id : null,
-                historyIndex: Math.max(0, historyIndex)
-              });
-            }
+          console.log(`[DEBUG] 取消ボタンクリック: number=${item.number}, isActive=${isActive}, index=${index}`);
+          
+          // 取り消し実行（confirmなしで直接実行）
+          if (isActive) {
+            console.log(`[DEBUG] アクティブな呼び出しをキャンセル: socket.emit('cancelCall')`);
+            socket.emit('cancelCall');
+          } else {
+            const historyIndex = currentCallInHistory ? index : index - 1;
+            const seatId = item.seat ? item.seat.id : null;
+            console.log(`[DEBUG] 履歴からキャンセル: number=${item.number}, seatId=${seatId}, historyIndex=${historyIndex}`);
+            socket.emit('cancelHistoryCall', { 
+              number: item.number, 
+              seatId: seatId,
+              historyIndex: Math.max(0, historyIndex)
+            });
           }
         };
         div.appendChild(cancelBtn);
@@ -367,22 +392,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
   socket.on('init', (data) => {
     console.log('[DEBUG] 初期データ受信:', data);
-    console.log(`[DEBUG] 受信データ - 履歴件数: ${data.calledHistory ? data.calledHistory.length : 0}, 現在の呼び出し: ${data.currentCall ? data.currentCall.number : 'なし'}`);
+    console.log(`[DEBUG] 受信データ - 履歴件数: ${data.calledHistory ? data.calledHistory.length : 0}, 現在の呼び出し: ${data.currentCall ? data.currentCall.number : 'なし'}, スキップ: ${data.skippedTickets ? data.skippedTickets.length : 0}件`);
     tickets = data.tickets || [];
     calledHistory = data.calledHistory || [];
     currentCall = data.currentCall;
     seats = data.seats || [];
+    skippedTickets = data.skippedTickets || [];
     showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
     updateDisplay();
   });
 
   socket.on('update', (data) => {
     console.log('[DEBUG] 更新データ受信:', data);
-    console.log(`[DEBUG] 受信データ - 履歴件数: ${data.calledHistory ? data.calledHistory.length : 0}, 現在の呼び出し: ${data.currentCall ? data.currentCall.number : 'なし'}`);
+    console.log(`[DEBUG] 受信データ - 履歴件数: ${data.calledHistory ? data.calledHistory.length : 0}, 現在の呼び出し: ${data.currentCall ? data.currentCall.number : 'なし'}, スキップ: ${data.skippedTickets ? data.skippedTickets.length : 0}件`);
     tickets = data.tickets || [];
     calledHistory = data.calledHistory || [];
     currentCall = data.currentCall;
     seats = data.seats || [];
+    skippedTickets = data.skippedTickets || [];
     showEstimatedWaitTime = data.showEstimatedWaitTime !== undefined ? data.showEstimatedWaitTime : false;
     updateDisplay();
   });

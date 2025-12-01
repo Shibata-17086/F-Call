@@ -90,6 +90,15 @@ console.log('🔌 Socket.ioサーバーを初期化しました');
 
 app.use(cors());
 app.use(express.json());
+
+// 開発時はキャッシュを無効化（ブラウザが常に最新ファイルを取得）
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
+
 app.use(express.static(path.join(__dirname)));
 
 // VOICEVOXプロキシ（CORS問題を回避）
@@ -581,19 +590,37 @@ io.on('connection', (socket) => {
   });
 
   // スキップ処理（呼び出しスキップ）
-  socket.on('skipTicket', ({ number }) => {
+  socket.on('skipTicket', (data) => {
+    console.log(`📥 skipTicket リクエスト受信:`, data);
+    
     try {
-      const targetNumber = Number(number);
-      if (!targetNumber) {
+      // データの検証
+      if (!data || data.number === undefined || data.number === null) {
+        console.log(`❌ スキップ失敗: 番号が指定されていません。data=${JSON.stringify(data)}`);
+        socket.emit('skipFailed', { message: 'スキップする番号が指定されていません。' });
+        return;
+      }
+      
+      const targetNumber = Number(data.number);
+      console.log(`📍 スキップ対象番号: ${targetNumber} (元の値: ${data.number}, 型: ${typeof data.number})`);
+      
+      if (isNaN(targetNumber) || targetNumber <= 0) {
+        console.log(`❌ スキップ失敗: 無効な番号 ${targetNumber}`);
         socket.emit('skipFailed', { message: 'スキップする番号が正しくありません。' });
         return;
       }
 
+      console.log(`📍 現在の待ち列: ${tickets.map(t => t.number).join(', ')}`);
       const ticketIndex = tickets.findIndex(t => t.number === targetNumber);
+      
       if (ticketIndex === -1) {
+        console.log(`❌ スキップ失敗: 番号${targetNumber}は待ち列にありません`);
         socket.emit('skipFailed', { message: `番号${targetNumber}は待ち列にありません。` });
         return;
       }
+      
+      console.log(`✅ スキップ対象を発見: インデックス=${ticketIndex}`);
+
 
       const skippedTicket = tickets.splice(ticketIndex, 1)[0];
       const skipTime = formatTime(new Date());
@@ -709,8 +736,13 @@ io.on('connection', (socket) => {
 
   // 呼び出しキャンセル
   socket.on('cancelCall', () => {
+    console.log(`📥 cancelCall リクエスト受信`);
+    console.log(`📍 currentCall:`, currentCall);
+    
     if (currentCall && currentCall.seat) {
       const cancelledNumber = currentCall.number;
+      const seatName = currentCall.seat.name;
+      console.log(`📍 キャンセル対象: 番号${cancelledNumber}, 座席${seatName}`);
       updateSeatStatus(currentCall.seat.id, 'available');
       
       // 履歴から該当項目を検索
@@ -761,7 +793,17 @@ io.on('connection', (socket) => {
         calledHistory.splice(historyIndex, 1);
       }
       
-      console.log(`呼び出しキャンセル: 番号${currentCall.number} (${currentCall.seat.name}) → 発券中リストに戻しました`);
+      // キャンセル成功をクライアントに通知
+      socket.emit('cancelSuccess', { 
+        number: cancelledNumber, 
+        seat: seatName,
+        message: `番号${cancelledNumber}（${seatName}）の呼び出しをキャンセルし、発券中リストに戻しました`
+      });
+      
+      console.log(`呼び出しキャンセル: 番号${cancelledNumber} (${seatName}) → 発券中リストに戻しました`);
+    } else {
+      // 呼び出し中の番号がない場合もエラーを通知
+      socket.emit('error', { message: '現在呼び出し中の番号がありません' });
     }
     currentCall = null;
     sendUpdate();
@@ -769,8 +811,22 @@ io.on('connection', (socket) => {
 
   // 履歴からの個別呼び出しキャンセル
   socket.on('cancelHistoryCall', ({ number, seatId, historyIndex }) => {
-    const seat = seats.find(s => s.id === seatId);
+    console.log(`📥 cancelHistoryCall リクエスト: number=${number}, seatId=${seatId}, historyIndex=${historyIndex}`);
+    
+    // seatIdがnullの場合は履歴から座席情報を取得
+    let seat = seatId ? seats.find(s => s.id === seatId) : null;
+    
+    // 履歴から座席情報を取得（seatIdがnullの場合）
+    if (!seat && historyIndex >= 0 && historyIndex < calledHistory.length) {
+      const historyItem = calledHistory[historyIndex];
+      if (historyItem && historyItem.seat && historyItem.seat.id) {
+        seat = seats.find(s => s.id === historyItem.seat.id);
+        console.log(`📍 履歴から座席情報を取得: ${seat ? seat.name : '見つからない'}`);
+      }
+    }
+    
     if (!seat) {
+      console.log(`❌ 座席が見つかりません: seatId=${seatId}, historyIndex=${historyIndex}`);
       socket.emit('error', { message: '座席が見つかりません' });
       return;
     }
