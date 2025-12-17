@@ -91,13 +91,12 @@
       <div id="seatList" class="seat-list"></div>
       <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; flex-wrap: wrap;">
         <input type="text" id="newSeatNumber" placeholder="番号 (例: 1)" style="font-size:1rem; width: 100px;">
-        <span style="font-size:1rem;">番</span>
         <select id="newSeatUnit" style="font-size:1rem; width: 150px; padding: 0.4rem;">
-          <option value="診察台">診察台</option>
-          <option value="ユニット" selected>ユニット</option>
-          <option value="診察室">診察室</option>
-          <option value="ブース">ブース</option>
-          <option value="番台">番台</option>
+          <option value="番診察台">番診察台</option>
+          <option value="番ユニット" selected>番ユニット</option>
+          <option value="番診察室">番診察室</option>
+          <option value="番ブース">番ブース</option>
+          <option value="番">番</option>
           <option value="__custom__">🔧 カスタム入力...</option>
         </select>
         <input type="text" id="customSeatUnit" placeholder="カスタム単位を入力" style="font-size:1rem; width: 150px; display: none;">

@@ -912,10 +912,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // 音声メッセージのテンプレートを変更する場合は、以下の部分を編集してください
         if (seatNumber) {
           // 座席番号が取得できた場合のメッセージ（単位も含む）
-          callMessage = `受付番号${currentCall.number}番の患者さま、${seatNumber}番${seatUnit}へお越しください`;
+          callMessage = `受付番号${currentCall.number}番の患者さま、${seatNumber}${seatUnit}へお越しください`;
           // 他の例:
-          // callMessage = `${currentCall.number}番の方、${seatNumber}番${seatUnit}へどうぞ`;
-          // callMessage = `番号${currentCall.number}、${seatNumber}番${seatUnit}へ`;
+          // callMessage = `${currentCall.number}番の方、${seatNumber}${seatUnit}へどうぞ`;
+          // callMessage = `番号${currentCall.number}、${seatNumber}${seatUnit}へ`;
         } else {
           // 座席番号が取得できない場合のメッセージ
           callMessage = `受付番号${currentCall.number}番の患者さま、${currentCall.seat.name}へお越しください`;

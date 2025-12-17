@@ -230,8 +230,8 @@ let calledHistory = []; // [{number, seat, time, actualWaitTime}]
 let skippedTickets = []; // [{number, time, priority}]
 let currentCall = null; // {number, seat, time}
 let seats = [
-  { id: '1', name: '1番ユニット', number: '1', unit: 'ユニット', status: 'available', currentPatient: null, sessionStartTime: null },
-  { id: '2', name: '2番ユニット', number: '2', unit: 'ユニット', status: 'available', currentPatient: null, sessionStartTime: null }
+  { id: '1', name: '1番ユニット', number: '1', unit: '番ユニット', status: 'available', currentPatient: null, sessionStartTime: null },
+  { id: '2', name: '2番ユニット', number: '2', unit: '番ユニット', status: 'available', currentPatient: null, sessionStartTime: null }
 ];
 let waitMinutesPerPerson = 5;
 let currentDate = getCurrentDate();
@@ -1035,7 +1035,7 @@ io.on('connection', (socket) => {
     const id = Date.now().toString();
     const number = String(data.number).trim();
     const unit = data.unit.trim();
-    const name = `${number}番${unit}`;
+    const name = `${number}${unit}`;
     
     seats.push({ 
       id, 
@@ -1065,7 +1065,7 @@ io.on('connection', (socket) => {
     
     // nameを更新
     if (seat.number && seat.unit) {
-      seat.name = `${seat.number}番${seat.unit}`;
+      seat.name = `${seat.number}${seat.unit}`;
     }
     
     sendUpdate();

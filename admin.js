@@ -66,7 +66,7 @@ const voicevoxIntonationValue = document.getElementById('voicevoxIntonationValue
 
 // 単位リスト（LocalStorageから読み込み）
 let customUnits = JSON.parse(localStorage.getItem('customUnits') || '[]');
-const defaultUnits = ['診察台', 'ユニット', '診察室', 'ブース', '番台'];
+const defaultUnits = ['番診察台', '番ユニット', '番診察室', '番ブース', '番'];
 
 // 単位リストを結合
 function getAllUnits() {
@@ -441,8 +441,8 @@ if (testSpeechBtn) {
     if (seats.length > 0) {
       const firstSeat = seats[0];
       const seatNumber = firstSeat.number || '1';
-      const seatUnit = firstSeat.unit || 'ユニット';
-      testMessage = `受付番号1番の患者さま、${seatNumber}番${seatUnit}へお越しください`;
+      const seatUnit = firstSeat.unit || '番ユニット';
+      testMessage = `受付番号1番の患者さま、${seatNumber}${seatUnit}へお越しください`;
     }
     
     // VOICEVOXを使用する場合
@@ -652,7 +652,7 @@ function updateDisplay() {
     unitSelect.style.cssText = 'font-size: 1rem; width: 120px; padding: 0.3rem;';
     
     // 動的に単位リストを更新
-    updateUnitDropdown(unitSelect, seat.unit || 'ユニット');
+    updateUnitDropdown(unitSelect, seat.unit || '番ユニット');
     
     const updateInputs = () => {
       const number = numberInput.value.trim();
@@ -672,12 +672,7 @@ function updateDisplay() {
       if (confirm('本当に削除しますか？')) socket.emit('admin:removeSeat', seat.id);
     };
     
-    const label1 = document.createElement('span');
-    label1.textContent = '番';
-    label1.style.fontSize = '1rem';
-    
     div.appendChild(numberInput);
-    div.appendChild(label1);
     div.appendChild(unitSelect);
     div.appendChild(delBtn);
     seatList.appendChild(div);
@@ -1263,7 +1258,7 @@ addSeatBtn.onclick = () => {
   newSeatNumber.value = '';
   customSeatUnit.value = '';
   customSeatUnit.style.display = 'none';
-  updateUnitDropdown(newSeatUnit, 'ユニット'); // ユニットに戻す
+  updateUnitDropdown(newSeatUnit, '番ユニット'); // 番ユニットに戻す
 };
 
 // 待ち時間設定
