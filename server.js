@@ -1031,11 +1031,12 @@ io.on('connection', (socket) => {
     }
     
     // 新しい形式（number + unit）
-    if (!data || !data.number || !data.unit) return;
+    if (!data || !data.unit) return;
     const id = Date.now().toString();
-    const number = String(data.number).trim();
+    const number = data.number ? String(data.number).trim() : '';
     const unit = data.unit.trim();
-    const name = `${number}${unit}`;
+    // 番号があれば「番号+単位」、なければ「単位のみ」
+    const name = number ? `${number}${unit}` : unit;
     
     seats.push({ 
       id, 
@@ -1056,16 +1057,17 @@ io.on('connection', (socket) => {
     const seat = seats.find(s => s.id === id);
     if (!seat) return;
     
-    if (number !== undefined && number !== null && String(number).trim()) {
+    // 番号は空文字も許可
+    if (number !== undefined && number !== null) {
       seat.number = String(number).trim();
     }
     if (unit !== undefined && unit !== null && String(unit).trim()) {
       seat.unit = String(unit).trim();
     }
     
-    // nameを更新
-    if (seat.number && seat.unit) {
-      seat.name = `${seat.number}${seat.unit}`;
+    // nameを更新（番号があれば「番号+単位」、なければ「単位のみ」）
+    if (seat.unit) {
+      seat.name = seat.number ? `${seat.number}${seat.unit}` : seat.unit;
     }
     
     sendUpdate();

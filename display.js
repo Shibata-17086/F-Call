@@ -901,8 +901,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // ============================================
         // 音声アナウンスのテキストを変更する場合は、ここを編集してください
         // ============================================
-        const seatNumber = currentCall.seat.number || currentCall.seat.name.replace(/[^0-9]/g, ''); // 座席番号を取得
-        const seatUnit = currentCall.seat.unit || 'ユニット'; // 座席単位を取得
+        // 座席情報を取得（カスタム単位対応）
+        const seatNumber = currentCall.seat.number || ''; // 座席番号（空の場合あり）
+        const seatUnit = currentCall.seat.unit || ''; // 座席単位（空の場合あり）
         let callMessage;
         
         // 優先度に応じたメッセージ（オプション）
@@ -910,14 +911,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             currentCall.priority === 'appointment' ? '予約の' : '';
         
         // 音声メッセージのテンプレートを変更する場合は、以下の部分を編集してください
-        if (seatNumber) {
-          // 座席番号が取得できた場合のメッセージ（単位も含む）
+        if (seatNumber && seatUnit) {
+          // 番号と単位が両方ある場合のメッセージ（例: 1番ユニット）
           callMessage = `受付番号${currentCall.number}番の患者さま、${seatNumber}${seatUnit}へお越しください`;
           // 他の例:
           // callMessage = `${currentCall.number}番の方、${seatNumber}${seatUnit}へどうぞ`;
           // callMessage = `番号${currentCall.number}、${seatNumber}${seatUnit}へ`;
         } else {
-          // 座席番号が取得できない場合のメッセージ
+          // 番号なし（カスタム単位）の場合: seat.nameをそのまま使用（例: 処置台）
           callMessage = `受付番号${currentCall.number}番の患者さま、${currentCall.seat.name}へお越しください`;
           // 他の例:
           // callMessage = `${currentCall.number}番の方、${currentCall.seat.name}へどうぞ`;
