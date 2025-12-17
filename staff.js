@@ -119,22 +119,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     seatStatusContainer.appendChild(seatGrid);
-    
-    // スキップ番号も座席状況エリアに表示
-    if (skippedTickets && skippedTickets.length > 0) {
-      const skipSection = document.createElement('div');
-      skipSection.style.cssText = 'display:flex; align-items:center; gap:8px; margin-left:20px; padding:8px 12px; background:#fff8e1; border-radius:0.5rem; border:1px solid #ffe0b2;';
-      skipSection.innerHTML = '<span style="color:#c77600; font-weight:500;">スキップ:</span>';
-      
-      skippedTickets.slice(0, 5).forEach(skip => {
-        const chip = document.createElement('span');
-        chip.style.cssText = 'display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:999px; background:#ffe7ba; color:#a05a00; font-size:0.9rem; font-weight:600;';
-        chip.textContent = `${skip.number}番`;
-        skipSection.appendChild(chip);
-      });
-      
-      seatStatusContainer.appendChild(skipSection);
-    }
 
     // 発券中リスト
     ticketList.innerHTML = '';
@@ -179,6 +163,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const availableSeats = seats.filter(seat => seat.status === 'available');
         
+        // 空欄の初期オプションを追加
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = '── 選択してください ──';
+        defaultOpt.selected = true;
+        seatSelect.appendChild(defaultOpt);
+        
         // 座席オプション
         if (availableSeats.length > 0) {
           availableSeats.forEach(seat => {
@@ -187,11 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
             opt.textContent = seat.name;
             seatSelect.appendChild(opt);
           });
-        } else {
-          const opt = document.createElement('option');
-          opt.value = '';
-          opt.textContent = '座席なし';
-          seatSelect.appendChild(opt);
         }
         
         // スキップオプションを追加
@@ -206,7 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 実行ボタン
         const actionBtn = document.createElement('button');
         actionBtn.innerHTML = '呼出';
-        actionBtn.style.cssText = 'width:100%; min-height:52px; font-size:1.1rem; font-weight:500; border-radius:0.5rem; border:none; background:#4ca3d8; color:white; cursor:pointer;';
+        // 初期状態では座席未選択なのでグレー
+        actionBtn.style.cssText = 'width:100%; min-height:52px; font-size:1.1rem; font-weight:500; border-radius:0.5rem; border:none; background:#ccc; color:white; cursor:pointer;';
         
         // 選択変更時にボタンを更新
         seatSelect.onchange = () => {
