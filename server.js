@@ -1013,6 +1013,8 @@ io.on('connection', (socket) => {
 
   // 座席管理
   socket.on('admin:addSeat', (data) => {
+    console.log('📥 座席追加リクエスト受信:', JSON.stringify(data));
+    
     // 後方互換性のため、文字列の場合も対応
     if (typeof data === 'string') {
       if (!data.trim()) return;
@@ -1031,14 +1033,18 @@ io.on('connection', (socket) => {
     }
     
     // 新しい形式（number + unit）
-    if (!data || !data.unit) return;
+    if (!data || !data.unit) {
+      console.log('❌ 座席追加失敗: unitが空です', data);
+      return;
+    }
     const id = Date.now().toString();
-    const number = data.number ? String(data.number).trim() : '';
+    // 番号は空文字列でもOK（カスタム単位用）
+    const number = (data.number !== undefined && data.number !== null) ? String(data.number).trim() : '';
     const unit = data.unit.trim();
     // 番号があれば「番号+単位」、なければ「単位のみ」
     const name = number ? `${number}${unit}` : unit;
     
-    seats.push({ 
+    const newSeat = { 
       id, 
       name,
       number,
@@ -1046,7 +1052,10 @@ io.on('connection', (socket) => {
       status: 'available',
       currentPatient: null,
       sessionStartTime: null
-    });
+    };
+    console.log('✅ 座席追加成功:', JSON.stringify(newSeat));
+    seats.push(newSeat);
+    console.log('📋 現在の座席一覧:', seats.map(s => s.name).join(', '));
     sendUpdate();
   });
   socket.on('admin:removeSeat', (id) => {

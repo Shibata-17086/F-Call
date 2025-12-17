@@ -1325,6 +1325,7 @@ addSeatBtn.onclick = () => {
   }
   
   // カスタム単位で番号なしの場合、単位のみで登録
+  console.log('📤 座席追加送信:', { number, unit, isDefaultUnit });
   socket.emit('admin:addSeat', { number, unit });
   newSeatNumber.value = '';
   customSeatUnit.value = '';
