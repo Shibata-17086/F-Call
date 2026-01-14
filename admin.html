@@ -89,7 +89,8 @@
     <div class="section">
       <div class="log-title">座席（診察台）管理</div>
       <div id="seatList" class="seat-list"></div>
-      <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; flex-wrap: wrap;">
+      <!-- 通常モード：番号 + 単位 -->
+      <div id="normalSeatInput" style="display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; flex-wrap: wrap;">
         <input type="text" id="newSeatNumber" placeholder="番号 (例: 1)" style="font-size:1rem; width: 100px;">
         <select id="newSeatUnit" style="font-size:1rem; width: 150px; padding: 0.4rem;">
           <option value="番診察台">番診察台</option>
@@ -97,14 +98,16 @@
           <option value="番診察室">番診察室</option>
           <option value="番ブース">番ブース</option>
           <option value="番">番</option>
-          <option value="__custom__">🔧 カスタム入力...</option>
         </select>
-        <input type="text" id="customSeatUnit" placeholder="カスタム単位を入力" style="font-size:1rem; width: 150px; display: none;">
         <button id="addSeatBtn" class="btn btn-primary">座席を追加</button>
       </div>
-      <div style="margin-top: 1rem;">
-        <div style="font-size: 0.9rem; color: #666; margin-bottom: 0.5rem;">カスタム単位一覧（クリックで削除）:</div>
-        <div id="customUnitList" style="display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
+      <!-- 直接入力モード：座席名をそのまま登録 -->
+      <div id="directSeatInput" style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.8rem; flex-wrap: wrap;">
+        <input type="text" id="directSeatName" placeholder="座席名を直接入力（例: 処置台、レントゲン室）" style="font-size:1rem; width: 280px;">
+        <button id="addDirectSeatBtn" class="btn" style="background: #4caf50; color: white;">➕ 登録</button>
+      </div>
+      <div style="margin-top: 0.3rem; font-size: 0.85rem; color: #666;">
+        💡 番号なしで「処置台」「診察室」などをそのまま登録できます
       </div>
     </div>
     

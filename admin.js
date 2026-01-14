@@ -22,7 +22,6 @@ const socket = io(getServerUrl());
 const seatList = document.getElementById('seatList');
 const newSeatNumber = document.getElementById('newSeatNumber');
 const newSeatUnit = document.getElementById('newSeatUnit');
-const customSeatUnit = document.getElementById('customSeatUnit');
 const addSeatBtn = document.getElementById('addSeatBtn');
 const ticketList = document.getElementById('ticketList');
 const issuedHistoryList = document.getElementById('issuedHistoryList');
@@ -64,73 +63,17 @@ const voicevoxPitchValue = document.getElementById('voicevoxPitchValue');
 const voicevoxIntonationSlider = document.getElementById('voicevoxIntonationSlider');
 const voicevoxIntonationValue = document.getElementById('voicevoxIntonationValue');
 
-// 単位リスト（LocalStorageから読み込み）
-let customUnits = JSON.parse(localStorage.getItem('customUnits') || '[]');
+// 単位リスト
 const defaultUnits = ['番診察台', '番ユニット', '番診察室', '番ブース', '番'];
-
-// 単位リストを結合
-function getAllUnits() {
-  return [...defaultUnits, ...customUnits];
-}
-
-// 単位をLocalStorageに保存
-function saveCustomUnits() {
-  localStorage.setItem('customUnits', JSON.stringify(customUnits));
-}
-
-// カスタム単位リストを表示
-function updateCustomUnitList() {
-  const listElement = document.getElementById('customUnitList');
-  if (!listElement) return;
-  
-  listElement.innerHTML = '';
-  
-  if (customUnits.length === 0) {
-    const emptyMsg = document.createElement('span');
-    emptyMsg.textContent = 'カスタム単位はありません';
-    emptyMsg.style.cssText = 'color: #999; font-size: 0.85rem;';
-    listElement.appendChild(emptyMsg);
-    return;
-  }
-  
-  customUnits.forEach((unit, index) => {
-    const chip = document.createElement('span');
-    chip.style.cssText = `
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      padding: 0.3rem 0.6rem;
-      background: #e3f2fd;
-      border: 1px solid #bbdefb;
-      border-radius: 999px;
-      font-size: 0.9rem;
-      cursor: pointer;
-    `;
-    chip.innerHTML = `${unit} <span style="color: #f44336; font-weight: bold;">×</span>`;
-    chip.title = 'クリックで削除';
-    chip.onclick = () => {
-      if (confirm(`「${unit}」を削除しますか？`)) {
-        customUnits.splice(index, 1);
-        saveCustomUnits();
-        updateCustomUnitList();
-        if (newSeatUnit) {
-          updateUnitDropdown(newSeatUnit, '番ユニット');
-        }
-      }
-    };
-    listElement.appendChild(chip);
-  });
-}
 
 // ドロップダウンを更新
 function updateUnitDropdown(selectElement, selectedValue = null) {
   const currentValue = selectedValue || selectElement.value;
   selectElement.innerHTML = '';
   
-  const allUnits = getAllUnits();
   let valueFound = false;
   
-  allUnits.forEach(unit => {
+  defaultUnits.forEach(unit => {
     const option = document.createElement('option');
     option.value = unit;
     option.textContent = unit;
@@ -141,37 +84,19 @@ function updateUnitDropdown(selectElement, selectedValue = null) {
     selectElement.appendChild(option);
   });
   
-  // 選択値がリストにない場合（既存座席のカスタム単位が削除された場合など）、一時的に追加
-  if (currentValue && currentValue !== '__custom__' && !valueFound) {
+  // 選択値がリストにない場合（直接入力で追加された座席など）、追加
+  if (currentValue && !valueFound) {
     const existingOption = document.createElement('option');
     existingOption.value = currentValue;
-    existingOption.textContent = `${currentValue} (未登録)`;
+    existingOption.textContent = currentValue;
     existingOption.selected = true;
-    // リストの先頭に挿入
     selectElement.insertBefore(existingOption, selectElement.firstChild);
-  }
-  
-  // カスタム入力オプションを追加
-  const customOption = document.createElement('option');
-  customOption.value = '__custom__';
-  customOption.textContent = '🔧 カスタム入力...';
-  selectElement.appendChild(customOption);
-  
-  if (currentValue === '__custom__') {
-    customOption.selected = true;
   }
 }
 
-// カスタム入力の表示/非表示
-if (newSeatUnit) {
-  newSeatUnit.onchange = () => {
-    if (newSeatUnit.value === '__custom__') {
-      customSeatUnit.style.display = 'inline-block';
-      customSeatUnit.focus();
-    } else {
-      customSeatUnit.style.display = 'none';
-    }
-  };
+// 番号入力欄のプレースホルダー設定
+if (newSeatNumber) {
+  newSeatNumber.placeholder = '番号 (例: 1)';
 }
 
 // ============================================
@@ -721,7 +646,7 @@ function updateDisplay() {
       const number = numberInput.value.trim();
       const unit = unitSelect.value;
       // 単位があれば更新（番号は空でもOK）
-      if (unit && unit !== '__custom__') {
+      if (unit) {
         socket.emit('admin:editSeat', { id: seat.id, number, unit });
       }
     };
@@ -1239,14 +1164,6 @@ socket.on('init', (data) => {
     updateVoiceSettingsUI();
   }
   
-  // 初期化時に単位ドロップダウンを更新
-  if (newSeatUnit) {
-    updateUnitDropdown(newSeatUnit);
-  }
-  
-  // カスタム単位リストを表示
-  updateCustomUnitList();
-  
   updateDisplay();
 });
 
@@ -1292,46 +1209,40 @@ socket.on('cancelSuccess', (data) => {
   }, 3000);
 });
 
-// 座席追加
+// 座席追加（番号 + 単位モード）
 addSeatBtn.onclick = () => {
   const number = newSeatNumber.value.trim();
-  let unit = newSeatUnit.value;
+  const unit = newSeatUnit.value;
   
-  // カスタム入力の場合
-  if (unit === '__custom__') {
-    const customUnit = customSeatUnit.value.trim();
-    if (!customUnit) {
-      alert('カスタム単位を入力してください');
-      customSeatUnit.focus();
-      return;
-    }
-    unit = customUnit;
-    
-    // カスタム単位をリストに追加（重複チェック）
-    const allUnits = getAllUnits();
-    if (!allUnits.includes(unit)) {
-      customUnits.push(unit);
-      saveCustomUnits();
-      updateUnitDropdown(newSeatUnit, unit);
-      updateCustomUnitList();
-    }
-  }
-  
-  // デフォルト単位の場合のみ番号必須
-  const isDefaultUnit = defaultUnits.includes(unit);
-  if (isDefaultUnit && !number) {
+  if (!number) {
     alert('番号を入力してください');
     return;
   }
   
-  // カスタム単位で番号なしの場合、単位のみで登録
-  console.log('📤 座席追加送信:', { number, unit, isDefaultUnit });
+  console.log('📤 座席追加送信:', { number, unit });
   socket.emit('admin:addSeat', { number, unit });
   newSeatNumber.value = '';
-  customSeatUnit.value = '';
-  customSeatUnit.style.display = 'none';
-  updateUnitDropdown(newSeatUnit, '番ユニット'); // 番ユニットに戻す
 };
+
+// 座席追加（直接入力モード）
+const addDirectSeatBtn = document.getElementById('addDirectSeatBtn');
+const directSeatName = document.getElementById('directSeatName');
+
+if (addDirectSeatBtn && directSeatName) {
+  addDirectSeatBtn.onclick = () => {
+    const name = directSeatName.value.trim();
+    
+    if (!name) {
+      alert('座席名を入力してください');
+      directSeatName.focus();
+      return;
+    }
+    
+    console.log('📤 座席直接追加送信:', { name });
+    socket.emit('admin:addSeatDirect', { name });
+    directSeatName.value = '';
+  };
+}
 
 // 待ち時間設定
 setWaitMinutesBtn.onclick = () => {

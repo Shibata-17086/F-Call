@@ -162,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
         seatSelect.style.cssText = 'width:100%;';
         
         const availableSeats = seats.filter(seat => seat.status === 'available');
+        console.log('[DEBUG] 利用可能座席:', availableSeats.map(s => ({ id: s.id, name: s.name, number: s.number, unit: s.unit })));
         
         // 空欄の初期オプションを追加
         const defaultOpt = document.createElement('option');
@@ -380,6 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
   socket.on('init', (data) => {
     console.log('[DEBUG] 初期データ受信:', data);
     console.log(`[DEBUG] 受信データ - 履歴件数: ${data.calledHistory ? data.calledHistory.length : 0}, 現在の呼び出し: ${data.currentCall ? data.currentCall.number : 'なし'}, スキップ: ${data.skippedTickets ? data.skippedTickets.length : 0}件`);
+    console.log('[DEBUG] 受信した座席データ:', data.seats);
     tickets = data.tickets || [];
     calledHistory = data.calledHistory || [];
     currentCall = data.currentCall;

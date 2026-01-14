@@ -1062,6 +1062,34 @@ io.on('connection', (socket) => {
     seats = seats.filter(s => s.id !== id);
     sendUpdate();
   });
+  
+  // 座席直接追加（座席名をそのまま登録）
+  socket.on('admin:addSeatDirect', (data) => {
+    console.log('📥 座席直接追加リクエスト受信:', JSON.stringify(data));
+    
+    if (!data || !data.name || !data.name.trim()) {
+      console.log('❌ 座席直接追加失敗: nameが空です', data);
+      return;
+    }
+    
+    const id = Date.now().toString();
+    const name = data.name.trim();
+    
+    const newSeat = { 
+      id, 
+      name,
+      number: '',  // 番号なし
+      unit: name,  // 単位は座席名と同じ
+      status: 'available',
+      currentPatient: null,
+      sessionStartTime: null
+    };
+    
+    console.log('✅ 座席直接追加成功:', JSON.stringify(newSeat));
+    seats.push(newSeat);
+    console.log('📋 現在の座席一覧:', seats.map(s => s.name).join(', '));
+    sendUpdate();
+  });
   socket.on('admin:editSeat', ({ id, number, unit }) => {
     const seat = seats.find(s => s.id === id);
     if (!seat) return;
