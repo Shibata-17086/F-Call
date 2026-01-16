@@ -91,15 +91,12 @@
       <div id="seatList" class="seat-list"></div>
       <!-- 通常モード：番号 + 単位 -->
       <div id="normalSeatInput" style="display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; flex-wrap: wrap;">
-        <input type="text" id="newSeatNumber" placeholder="番号 (例: 1)" style="font-size:1rem; width: 100px;">
-        <select id="newSeatUnit" style="font-size:1rem; width: 150px; padding: 0.4rem;">
-          <option value="番診察台">番診察台</option>
-          <option value="番ユニット" selected>番ユニット</option>
-          <option value="番診察室">番診察室</option>
-          <option value="番ブース">番ブース</option>
-          <option value="番">番</option>
-        </select>
+        <input type="text" id="newSeatNumber" placeholder="番号 (例: 1)" style="font-size:1rem; width: 80px;">
+        <input type="text" id="newSeatUnit" placeholder="単位 (例: 番ユニット)" style="font-size:1rem; width: 140px;" value="番ユニット">
         <button id="addSeatBtn" class="btn btn-primary">座席を追加</button>
+      </div>
+      <div style="margin-top: 0.3rem; font-size: 0.85rem; color: #666;">
+        💡 例: 番号「1」+ 単位「番診察台」→「1番診察台」
       </div>
       <!-- 直接入力モード：座席名をそのまま登録 -->
       <div id="directSeatInput" style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.8rem; flex-wrap: wrap;">

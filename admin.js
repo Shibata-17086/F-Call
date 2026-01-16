@@ -23,6 +23,8 @@ const seatList = document.getElementById('seatList');
 const newSeatNumber = document.getElementById('newSeatNumber');
 const newSeatUnit = document.getElementById('newSeatUnit');
 const addSeatBtn = document.getElementById('addSeatBtn');
+const addDirectSeatBtn = document.getElementById('addDirectSeatBtn');
+const directSeatName = document.getElementById('directSeatName');
 const ticketList = document.getElementById('ticketList');
 const issuedHistoryList = document.getElementById('issuedHistoryList');
 const historyList = document.getElementById('historyList');
@@ -63,36 +65,6 @@ const voicevoxPitchValue = document.getElementById('voicevoxPitchValue');
 const voicevoxIntonationSlider = document.getElementById('voicevoxIntonationSlider');
 const voicevoxIntonationValue = document.getElementById('voicevoxIntonationValue');
 
-// 単位リスト
-const defaultUnits = ['番診察台', '番ユニット', '番診察室', '番ブース', '番'];
-
-// ドロップダウンを更新
-function updateUnitDropdown(selectElement, selectedValue = null) {
-  const currentValue = selectedValue || selectElement.value;
-  selectElement.innerHTML = '';
-  
-  let valueFound = false;
-  
-  defaultUnits.forEach(unit => {
-    const option = document.createElement('option');
-    option.value = unit;
-    option.textContent = unit;
-    if (unit === currentValue) {
-      option.selected = true;
-      valueFound = true;
-    }
-    selectElement.appendChild(option);
-  });
-  
-  // 選択値がリストにない場合（直接入力で追加された座席など）、追加
-  if (currentValue && !valueFound) {
-    const existingOption = document.createElement('option');
-    existingOption.value = currentValue;
-    existingOption.textContent = currentValue;
-    existingOption.selected = true;
-    selectElement.insertBefore(existingOption, selectElement.firstChild);
-  }
-}
 
 // 番号入力欄のプレースホルダー設定
 if (newSeatNumber) {
@@ -629,41 +601,61 @@ function updateDisplay() {
     div.className = 'seat-item';
     div.style.cssText = 'display: flex; gap: 0.5rem; align-items: center;';
     
-    const numberInput = document.createElement('input');
-    numberInput.value = seat.number || seat.name.replace(/[^0-9]/g, '');
-    numberInput.className = 'seat-edit';
-    numberInput.style.cssText = 'font-size: 1rem; width: 60px;';
-    numberInput.placeholder = '番号';
+    // 番号なしの座席（直接入力で追加された座席）かどうかを判定
+    const isDirectSeat = !seat.number || seat.number === '';
     
-    const unitSelect = document.createElement('select');
-    unitSelect.className = 'seat-edit';
-    unitSelect.style.cssText = 'font-size: 1rem; width: 120px; padding: 0.3rem;';
+    if (isDirectSeat) {
+      // 番号なし座席：座席名のみ表示
+      const nameLabel = document.createElement('span');
+      nameLabel.textContent = seat.name;
+      nameLabel.style.cssText = 'font-size: 1rem; font-weight: bold; padding: 0.4rem 0.8rem; background: #e8f5e9; border-radius: 4px; min-width: 150px;';
+      
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '削除';
+      delBtn.className = 'btn btn-danger';
+      delBtn.onclick = () => {
+        if (confirm('本当に削除しますか？')) socket.emit('admin:removeSeat', seat.id);
+      };
+      
+      div.appendChild(nameLabel);
+      div.appendChild(delBtn);
+    } else {
+      // 番号あり座席：番号 + 単位
+      const numberInput = document.createElement('input');
+      numberInput.value = seat.number || '';
+      numberInput.className = 'seat-edit';
+      numberInput.style.cssText = 'font-size: 1rem; width: 60px;';
+      numberInput.placeholder = '番号';
+      
+      const unitInput = document.createElement('input');
+      unitInput.value = seat.unit || '番ユニット';
+      unitInput.className = 'seat-edit';
+      unitInput.style.cssText = 'font-size: 1rem; width: 120px;';
+      unitInput.placeholder = '単位';
+      
+      const updateInputs = () => {
+        const number = numberInput.value.trim();
+        const unit = unitInput.value.trim();
+        if (number && unit) {
+          socket.emit('admin:editSeat', { id: seat.id, number, unit });
+        }
+      };
+      
+      numberInput.onchange = updateInputs;
+      unitInput.onchange = updateInputs;
+      
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '削除';
+      delBtn.className = 'btn btn-danger';
+      delBtn.onclick = () => {
+        if (confirm('本当に削除しますか？')) socket.emit('admin:removeSeat', seat.id);
+      };
+      
+      div.appendChild(numberInput);
+      div.appendChild(unitInput);
+      div.appendChild(delBtn);
+    }
     
-    // 動的に単位リストを更新（seat.unitがなければseat.nameを使用）
-    updateUnitDropdown(unitSelect, seat.unit || seat.name || '番ユニット');
-    
-    const updateInputs = () => {
-      const number = numberInput.value.trim();
-      const unit = unitSelect.value;
-      // 単位があれば更新（番号は空でもOK）
-      if (unit) {
-        socket.emit('admin:editSeat', { id: seat.id, number, unit });
-      }
-    };
-    
-    numberInput.onchange = updateInputs;
-    unitSelect.onchange = updateInputs;
-    
-    const delBtn = document.createElement('button');
-    delBtn.textContent = '削除';
-    delBtn.className = 'btn btn-danger';
-    delBtn.onclick = () => {
-      if (confirm('本当に削除しますか？')) socket.emit('admin:removeSeat', seat.id);
-    };
-    
-    div.appendChild(numberInput);
-    div.appendChild(unitSelect);
-    div.appendChild(delBtn);
     seatList.appendChild(div);
   });
   
@@ -1212,10 +1204,15 @@ socket.on('cancelSuccess', (data) => {
 // 座席追加（番号 + 単位モード）
 addSeatBtn.onclick = () => {
   const number = newSeatNumber.value.trim();
-  const unit = newSeatUnit.value;
+  const unit = newSeatUnit.value.trim();
   
   if (!number) {
     alert('番号を入力してください');
+    return;
+  }
+  
+  if (!unit) {
+    alert('単位を入力してください');
     return;
   }
   
@@ -1225,12 +1222,11 @@ addSeatBtn.onclick = () => {
 };
 
 // 座席追加（直接入力モード）
-const addDirectSeatBtn = document.getElementById('addDirectSeatBtn');
-const directSeatName = document.getElementById('directSeatName');
-
 if (addDirectSeatBtn && directSeatName) {
+  console.log('✅ 直接入力ボタンを設定しました');
   addDirectSeatBtn.onclick = () => {
     const name = directSeatName.value.trim();
+    console.log('🖱️ 直接入力ボタンクリック - 入力値:', name);
     
     if (!name) {
       alert('座席名を入力してください');
@@ -1242,6 +1238,8 @@ if (addDirectSeatBtn && directSeatName) {
     socket.emit('admin:addSeatDirect', { name });
     directSeatName.value = '';
   };
+} else {
+  console.error('❌ 直接入力要素が見つかりません:', { addDirectSeatBtn, directSeatName });
 }
 
 // 待ち時間設定
